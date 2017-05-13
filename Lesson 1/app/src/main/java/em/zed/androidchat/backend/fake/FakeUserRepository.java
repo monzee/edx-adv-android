@@ -61,15 +61,18 @@ public class FakeUserRepository implements UserRepository {
     @Override
     public void put(User user) {
         String email = user.getEmail();
+        Map<String, Boolean> contacts = user.getContacts();
         Lock write = locks.writeLock();
         try {
             write.lock();
             Integer i = byEmail.get(email);
             if (i != null) {
                 User u = data.get(i);
-                u.setContacts(user.getContacts());
                 u.setEmail(email);
                 u.setOnline(user.isOnline());
+                if (contacts != null) {
+                    u.setContacts(contacts);
+                }
             } else {
                 byEmail.put(email, data.size());
                 data.add(user);

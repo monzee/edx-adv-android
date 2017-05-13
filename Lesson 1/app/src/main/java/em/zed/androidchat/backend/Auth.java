@@ -4,16 +4,21 @@
 
 package em.zed.androidchat.backend;
 
+import edu.galileo.android.androidchat.contactlist.entities.User;
+
 public interface Auth {
 
     interface Service {
         /**
          * @return false means the email passed is already registered.
+         * TODO: reconsider this API
          */
         boolean signUp(String email, String password) throws SignUpError, InterruptedException;
         Tokens login(String email, String password) throws AuthError, InterruptedException;
         Tokens refresh(String token) throws AuthError, InterruptedException;
         Status check(String token) throws InterruptedException;
+        User profile() throws InterruptedException;
+        void logout(String token) throws InterruptedException;
     }
 
     enum Status { GUEST, EXPIRED, LOGGED_IN }
@@ -25,6 +30,11 @@ public interface Auth {
         public Tokens(String auth, String refresh) {
             this.auth = auth;
             this.refresh = refresh;
+        }
+
+        @Override
+        public String toString() {
+            return auth + ":" + refresh;
         }
     }
 

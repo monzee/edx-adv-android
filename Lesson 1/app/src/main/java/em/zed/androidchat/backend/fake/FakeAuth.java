@@ -19,6 +19,7 @@ public class FakeAuth implements Auth.Service {
     private final ReadWriteLock locks = new ReentrantReadWriteLock();
     private final Map<String, String> accounts = new HashMap<>();
     private final FakeUserRepository users;
+    private String lastChecked;
 
     public FakeAuth() {
         this(Collections.emptyMap());
@@ -86,10 +87,32 @@ public class FakeAuth implements Auth.Service {
 
     @Override
     public Auth.Status check(String token) {
+        lastChecked = token;
         if (accounts.containsKey(token)) {
             return Auth.Status.LOGGED_IN;
         }
         return Auth.Status.GUEST;
+    }
+
+    /**
+     * Needs to do a {@link #check(String)} first before this could work.
+     *
+     * @return the user row of the last token checked
+     */
+    @Override
+    public User profile() {
+        if (lastChecked == null || !accounts.containsKey(lastChecked)) {
+            return null;
+        }
+        return users.getByEmail(lastChecked);
+    }
+
+    @Override
+    public void logout(String token) {
+        User u = users.getByEmail(token);
+        u.setOnline(User.OFFLINE);
+        users.put(u);
+        lastChecked = null;
     }
 
 }

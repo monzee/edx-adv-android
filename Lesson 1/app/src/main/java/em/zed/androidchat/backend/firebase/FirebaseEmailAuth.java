@@ -17,20 +17,30 @@ import em.zed.androidchat.Globals;
 import em.zed.androidchat.LogLevel;
 import em.zed.androidchat.Logger;
 import em.zed.androidchat.backend.Auth;
+import em.zed.androidchat.backend.Contacts;
 import em.zed.androidchat.backend.UserRepository;
 
 public class FirebaseEmailAuth implements Auth.Service {
 
     private final UserRepository users;
+    private final Contacts.Service contacts;
     private final FirebaseAuth fbAuth;
     private final Logger log;
 
-    public FirebaseEmailAuth(UserRepository users, FirebaseAuth fbAuth) {
-        this(users, fbAuth, null);
+    public FirebaseEmailAuth(
+            UserRepository users,
+            Contacts.Service contacts,
+            FirebaseAuth fbAuth) {
+        this(users, contacts, fbAuth, null);
     }
 
-    public FirebaseEmailAuth(UserRepository users, FirebaseAuth fbAuth, Logger log) {
+    public FirebaseEmailAuth(
+            UserRepository users,
+            Contacts.Service contacts,
+            FirebaseAuth fbAuth,
+            Logger log) {
         this.users = users;
+        this.contacts = contacts;
         this.fbAuth = fbAuth;
         this.log = log;
     }
@@ -81,7 +91,7 @@ public class FirebaseEmailAuth implements Auth.Service {
         Auth.Tokens t = result.await();
         User u = users.getByEmail(email);
         u.setOnline(User.ONLINE);
-        users.put(u);
+        contacts.broadcastStatus(u);
         return t;
     }
 
@@ -97,6 +107,27 @@ public class FirebaseEmailAuth implements Auth.Service {
             return Auth.Status.LOGGED_IN;
         }
         return Auth.Status.GUEST;
+    }
+
+    @Override
+    public User profile() throws InterruptedException {
+        FirebaseUser user = fbAuth.getCurrentUser();
+        if (user == null) {
+            return null;
+        }
+        return new User(user.getEmail(), true, null);
+    }
+
+    @Override
+    public void logout(String token) throws InterruptedException {
+        FirebaseUser currentUser = fbAuth.getCurrentUser();
+        if (currentUser == null) {
+            return;
+        }
+        User u = users.getByEmail(currentUser.getEmail());
+        u.setOnline(User.OFFLINE);
+        contacts.broadcastStatus(u);
+        fbAuth.signOut();
     }
 
 }

@@ -6,10 +6,11 @@ package em.zed.androidchat.backend.firebase;
 
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseException;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.ValueEventListener;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 
@@ -28,8 +29,8 @@ public class FirebaseUserRepository implements UserRepository {
 
     @Override
     public User getByEmail(String email) throws InterruptedException {
-        Either.Wait<DatabaseException, User> result = new Either.Wait<>();
-        usersNode.child(legalize(email))
+        Either.Wait<RuntimeException, User> result = new Either.Wait<>();
+        usersNode.child(Schema.legalize(email))
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(DataSnapshot node) {
@@ -47,8 +48,17 @@ public class FirebaseUserRepository implements UserRepository {
     @Override
     public void put(User user) throws InterruptedException {
         CountDownLatch done = new CountDownLatch(1);
-        usersNode.child(legalize(user.getEmail()))
-                .setValue(user, (databaseError, databaseReference) -> done.countDown());
+        String email = user.getEmail();
+        if (user.getContacts() != null) {
+            usersNode.child(Schema.legalize(email))
+                    .setValue(user, (_err, _ref) -> done.countDown());
+        } else {
+            Map<String, Object> values = new HashMap<>();
+            values.put("/" + Schema.EMAIL, email);
+            values.put("/" + Schema.ONLINE, user.isOnline());
+            usersNode.child(Schema.legalize(email))
+                    .updateChildren(values, (_err, _ref) -> done.countDown());
+        }
         done.await();
     }
 
@@ -60,8 +70,14 @@ public class FirebaseUserRepository implements UserRepository {
     @Override
     public Canceller onUpdate(Executor ex, String email, OnUserUpdate listener) {
         ValueEventListener onChange = new ValueEventListener() {
+            boolean initial = true;
+
             @Override
             public void onDataChange(DataSnapshot node) {
+                if (initial) {
+                    initial = false;
+                    return;
+                }
                 User user = node.getValue(User.class);
                 ex.execute(() -> listener.updated(user));
             }
@@ -70,13 +86,9 @@ public class FirebaseUserRepository implements UserRepository {
             public void onCancelled(DatabaseError databaseError) {
             }
         };
-        DatabaseReference ref = usersNode.child(legalize(email));
+        DatabaseReference ref = usersNode.child(Schema.legalize(email));
         ref.addValueEventListener(onChange);
         return () -> ref.removeEventListener(onChange);
-    }
-
-    private static String legalize(String key) {
-        return key.replaceAll("[.$#\\[\\]]", "-");
     }
 
 }

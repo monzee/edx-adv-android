@@ -26,7 +26,9 @@ public interface Login {
             void signedUp(Model loggingIn);
 
             /**
-             * pretty bad API and default impl. consider refactoring.
+             * pretty bad API and default impl. consider refactoring. i think
+             * the proper way is to have a separate enum for remote validation
+             * errors.
              *
              * @param rejected if empty, it means the email is already taken.
              *                 otherwise contains the field(s) deemed
@@ -37,10 +39,6 @@ public interface Login {
 
             void error(Throwable e);
         }
-    }
-
-    interface View {
-        void apply(Model newState);
     }
 
     interface Controller {

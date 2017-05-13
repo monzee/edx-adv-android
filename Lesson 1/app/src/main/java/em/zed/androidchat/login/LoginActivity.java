@@ -6,10 +6,11 @@ package em.zed.androidchat.login;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.annotation.MainThread;
 import android.support.annotation.Nullable;
+import android.support.annotation.StringRes;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -30,7 +31,7 @@ import em.zed.androidchat.backend.Auth;
 
 import static edu.galileo.android.androidchat.AndroidChatApplication.GLOBALS;
 
-public class LoginActivity extends AppCompatActivity implements Login.View, Login.Model.Case {
+public class LoginActivity extends AppCompatActivity implements Login.Model.Case {
 
     public static final int RESULT = 1;
     public static final String TOKEN_AUTH = "key-auth-token";
@@ -84,14 +85,6 @@ public class LoginActivity extends AppCompatActivity implements Login.View, Logi
     }
 
     @Override
-    public void apply(Login.Model newState) {
-        runOnUiThread(() -> {
-            scope.state = newState;
-            newState.match(this);
-        });
-    }
-
-    @Override
     public void idle() {
         spin(false);
     }
@@ -116,9 +109,9 @@ public class LoginActivity extends AppCompatActivity implements Login.View, Logi
         spin(true);
         pending = scope.bg.submit(() -> {
             try {
-                apply(result.get());
+                render(result.get());
             } catch (ExecutionException e) {
-                apply(of -> of.error(e));
+                render(of -> of.error(e));
             } catch (InterruptedException ignored) {
             }
         });
@@ -127,6 +120,7 @@ public class LoginActivity extends AppCompatActivity implements Login.View, Logi
     @Override
     public void loggedIn(Auth.Tokens tokens) {
         spin(false);
+        Log.d("mz", "#loggedIn");
         setResult(RESULT_OK, new Intent()
                 .putExtra(TOKEN_AUTH, tokens.auth)
                 .putExtra(TOKEN_REFRESH, tokens.refresh));
@@ -135,8 +129,8 @@ public class LoginActivity extends AppCompatActivity implements Login.View, Logi
 
     @Override
     public void loginFailed(Login.Reason reason) {
-        say(reason.toString());
-        apply(Login.Model.Case::idle);
+        say(R.string.login_error_message_signin, reason);
+        render(Login.Model.Case::idle);
     }
 
     @Override
@@ -144,9 +138,9 @@ public class LoginActivity extends AppCompatActivity implements Login.View, Logi
         spin(true);
         pending = scope.bg.submit(() -> {
             try {
-                apply(result.get());
+                render(result.get());
             } catch (ExecutionException e) {
-                apply(of -> of.error(e));
+                render(of -> of.error(e));
             } catch (InterruptedException ignored) {
             }
         });
@@ -154,19 +148,19 @@ public class LoginActivity extends AppCompatActivity implements Login.View, Logi
 
     @Override
     public void signedUp(Login.Model loggingIn) {
-        say("Account created");
-        apply(loggingIn);
+        say(R.string.login_notice_message_useradded);
+        render(loggingIn);
     }
 
     @Override
     public void signUpFailed(EnumSet<Login.Invalid> rejected) {
         if (rejected.isEmpty()) {
             say("Email already taken. Did you forget your password?");
-            apply(Login.Model.Case::idle);
+            render(Login.Model.Case::idle);
         } else {
-            say("Signup failed");
+            say(R.string.login_error_message_signup, "; some field was rejected by the service.");
             rejected.add(Login.Invalid.REJECTED);
-            apply(of -> of.invalid(rejected));
+            render(of -> of.invalid(rejected));
         }
     }
 
@@ -179,14 +173,25 @@ public class LoginActivity extends AppCompatActivity implements Login.View, Logi
     void signIn() {
         String email = inputEmail.getText().toString();
         String password = inputPassword.getText().toString();
-        apply(scope.will.login(email, password));
+        render(scope.will.login(email, password));
     }
 
     @OnClick(R.id.btnSignup)
     void signUp() {
         String email = inputEmail.getText().toString();
         String password = inputPassword.getText().toString();
-        apply(scope.will.signUp(email, password));
+        render(scope.will.signUp(email, password));
+    }
+
+    void render(Login.Model newState) {
+        runOnUiThread(() -> {
+            scope.state = newState;
+            newState.match(this);
+        });
+    }
+
+    void say(@StringRes int message, Object... fmtArgs) {
+        say(getString(message, fmtArgs));
     }
 
     void say(String message, Object... fmtArgs) {
@@ -198,15 +203,11 @@ public class LoginActivity extends AppCompatActivity implements Login.View, Logi
         inputEmail.setError(null);
         inputPassword.setError(null);
         if (busy) {
-            inputEmail.setEnabled(false);
-            inputPassword.setEnabled(false);
             btnSignIn.setEnabled(false);
             btnSignUp.setEnabled(false);
             progressBar.setVisibility(View.VISIBLE);
         } else {
             pending = null;
-            inputEmail.setEnabled(true);
-            inputPassword.setEnabled(true);
             btnSignIn.setEnabled(true);
             btnSignUp.setEnabled(true);
             progressBar.setVisibility(View.GONE);

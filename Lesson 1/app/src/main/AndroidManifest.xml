@@ -12,8 +12,9 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme" >
         <activity
-            android:name=".login.ui.LoginActivity"
-            android:noHistory="true" >
+            android:name="em.zed.androidchat.main.MainActivity"
+            android:label="@string/contactlist.title"
+            android:theme="@style/AppTheme.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -22,8 +23,11 @@
         </activity>
         <activity
             android:name="em.zed.androidchat.login.LoginActivity"
-            android:exported="true"
-            android:noHistory="true" />
+            android:exported="true" />
+        <activity
+            android:name=".login.ui.LoginActivity"
+            android:noHistory="true">
+        </activity>
         <activity
             android:name=".contactlist.ui.ContactListActivity"
             android:label="@string/contactlist.title"
