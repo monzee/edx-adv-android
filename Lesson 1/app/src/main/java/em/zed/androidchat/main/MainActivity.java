@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
@@ -26,6 +27,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
+import butterknife.OnClick;
 import edu.galileo.android.androidchat.R;
 import edu.galileo.android.androidchat.contactlist.entities.User;
 import em.zed.androidchat.backend.Auth;
@@ -39,13 +41,14 @@ public class MainActivity extends AppCompatActivity
 
     private static class Retained {
         final ExecutorService bg = GLOBALS.io();
-        final Main.Controller will = new MainController(
+        final Main.SourcePort will = new MainController(
                 bg,
                 GLOBALS.auth(),
                 GLOBALS.users(),
                 GLOBALS.contacts(),
                 GLOBALS.logger());
         Main.Model state = Main.Model.Case::booting;
+        String subtitle;
     }
 
     @Bind(R.id.toolbar) Toolbar toolbar;
@@ -65,10 +68,14 @@ public class MainActivity extends AppCompatActivity
         }
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_contact_list);
+        ButterKnife.bind(this);
+        toolbar.setTitle(R.string.contactlist_title);
+        toolbar.setSubtitle(scope.subtitle);
+        setSupportActionBar(toolbar);
         adapter = new ContactsAdapter(new ContactsAdapter.Hook() {
             @Override
             public void click(User user) {
-                render(of -> of.conversingWith(user));
+                render(of -> of.willChatWith(user));
             }
 
             @Override
@@ -76,14 +83,14 @@ public class MainActivity extends AppCompatActivity
                 render(scope.will.removeContact(user.getEmail()));
             }
         });
-        ButterKnife.bind(this);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.addItemDecoration(new DividerItemDecoration(this, DividerItemDecoration.VERTICAL));
         recyclerView.setAdapter(adapter);
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        // TODO: check if this is called again after config change
+        Log.d("mz", "#onActivityResult");
         if (requestCode != LoginActivity.RESULT || resultCode != RESULT_OK) {
             finish();
             return;
@@ -109,7 +116,7 @@ public class MainActivity extends AppCompatActivity
         while (!pending.isEmpty()) {
             pending.remove().cancel(true);
         }
-        scope.state = of -> of.waiting(backlog);
+        scope.state = of -> of.working(backlog);
     }
 
     @Override
@@ -133,8 +140,10 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public void updated(User contact) {
-        render(adapter.updateContact(contact));
+    public void updated(User contact, boolean contacts) {
+        if (contacts) {
+            render(adapter.update(contact));
+        }
     }
 
     @Override
@@ -144,7 +153,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public void waiting(Deque<Main.Model> backlog) {
+    public void working(Deque<Main.Model> backlog) {
         Main.Model last = backlog.removeLast();
         for (Main.Model model : backlog) {
             model.match(this);
@@ -159,11 +168,18 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
+    public void loaded(String userEmail, List<User> contacts) {
+        toolbar.setSubtitle(userEmail);
+        scope.subtitle = userEmail;
+        render(of -> of.idle(contacts));
+    }
+
+    @Override
     public void idle(List<User> contacts) {
         Log.d("mz", "#idle");
-        adapter.setContacts(contacts);
+        adapter.replace(contacts);
         if (watch == null) {
-            watch = scope.will.observe(contacts, this);
+            watch = scope.will.observe(this);
         }
     }
 
@@ -174,8 +190,7 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void removed(User contact) {
-        unwatch();
-        render(adapter.removeContact(contact));
+        render(adapter.remove(contact));
     }
 
     @Override
@@ -185,8 +200,7 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void added(User contact) {
-        unwatch();
-        render(adapter.addContact(contact));
+        render(adapter.add(contact));
     }
 
     @Override
@@ -201,14 +215,19 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public void conversingWith(User contact) {
-        unwatch();
+    public void willChatWith(User contact) {
         // launch chat
     }
 
     @Override
     public void error(Throwable e) {
         throw new RuntimeException(e);
+    }
+
+    @OnClick(R.id.fab)
+    void add() {
+        // show dialog, receive email
+        // call controller.addContact
     }
 
     void render(Main.Model newState) {
@@ -220,8 +239,8 @@ public class MainActivity extends AppCompatActivity
 
     void async(Future<Main.Model> result) {
         Main.Model snapshot = scope.state;
-        AtomicReference<Future<?>> future = new AtomicReference<>();
-        future.set(scope.bg.submit(() -> {
+        AtomicReference<Future<?>> apply = new AtomicReference<>();
+        apply.set(scope.bg.submit(() -> {
             try {
                 render(result.get());
             } catch (ExecutionException e) {
@@ -229,10 +248,10 @@ public class MainActivity extends AppCompatActivity
             } catch (InterruptedException e) {
                 backlog.add(snapshot);
             } finally {
-                pending.remove(future.get());
+                pending.remove(apply.get());
             }
         }));
-        pending.add(future.get());
+        pending.add(apply.get());
         scope.state = adapter.sync();
     }
 

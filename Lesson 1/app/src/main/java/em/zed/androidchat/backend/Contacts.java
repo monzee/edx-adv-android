@@ -33,9 +33,8 @@ public interface Contacts {
          *
          * @param user the row containing the value to propagate
          * @throws InterruptedException may be thrown if the user's contacts
-         * field needs to be filled and was interrupted while doing so. If
-         * the argument has a non-null contacts field, this can be safely caught
-         * and ignored.
+         * field needs to be filled and was interrupted while doing so. If the
+         * argument has a non-null contacts field, this can be safely ignored.
          */
         void broadcastStatus(User user) throws InterruptedException;
     }

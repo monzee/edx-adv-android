@@ -100,7 +100,7 @@ public class FakeAuth implements Auth.Service {
      * @return the user row of the last token checked
      */
     @Override
-    public User profile() {
+    public User minimalProfile() {
         if (lastChecked == null || !accounts.containsKey(lastChecked)) {
             return null;
         }

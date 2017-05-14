@@ -19,9 +19,10 @@ public interface Main {
 
         interface Case {
             void booting();
-            void waiting(Deque<Model> backlog);
+            void working(Deque<Model> backlog);
 
             void loading(Future<Model> result);
+            void loaded(String userEmail, List<User> contacts);
             void idle(List<User> contacts);
 
             void removing(Future<Model> result);
@@ -33,17 +34,25 @@ public interface Main {
             void loggingOut(Future<Model> result);
             void loggedOut();
 
-            void conversingWith(User contact);
+            void willChatWith(User contact);
             void error(Throwable e);
         }
     }
 
-    interface Controller {
-        UserRepository.Canceller observe(List<User> contacts, UserRepository.OnUserUpdate listener);
+    interface SourcePort {
+        UserRepository.Canceller observe(UserRepository.OnUserUpdate listener);
         Model loadContacts(Auth.Tokens tokens);
         Model addContact(String email);
         Model removeContact(String email);
         Model logout();
+    }
+
+    interface DisplayPort {
+        void replace(List<User> contacts);
+        Model add(User contact);
+        Model remove(User contact);
+        Model update(User contact);
+        Model sync();
     }
 
 }

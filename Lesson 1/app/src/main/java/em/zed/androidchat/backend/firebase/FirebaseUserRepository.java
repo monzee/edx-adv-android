@@ -29,7 +29,7 @@ public class FirebaseUserRepository implements UserRepository {
 
     @Override
     public User getByEmail(String email) throws InterruptedException {
-        Either.Wait<RuntimeException, User> result = new Either.Wait<>();
+        Either.Unchecked<User> result = new Either.Unchecked<>();
         usersNode.child(Schema.legalize(email))
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
@@ -47,19 +47,25 @@ public class FirebaseUserRepository implements UserRepository {
 
     @Override
     public void put(User user) throws InterruptedException {
+        put(user, false);
+    }
+
+    @Override
+    public void put(User user, boolean fireAndForget) throws InterruptedException {
         CountDownLatch done = new CountDownLatch(1);
         String email = user.getEmail();
+        DatabaseReference node = usersNode.child(Schema.legalize(email));
         if (user.getContacts() != null) {
-            usersNode.child(Schema.legalize(email))
-                    .setValue(user, (_err, _ref) -> done.countDown());
+            node.setValue(user, (_err, _ref) -> done.countDown());
         } else {
             Map<String, Object> values = new HashMap<>();
-            values.put("/" + Schema.EMAIL, email);
-            values.put("/" + Schema.ONLINE, user.isOnline());
-            usersNode.child(Schema.legalize(email))
-                    .updateChildren(values, (_err, _ref) -> done.countDown());
+            values.put(Schema.EMAIL, email);
+            values.put(Schema.ONLINE, user.isOnline());
+            node.updateChildren(values, (_err, _ref) -> done.countDown());
         }
-        done.await();
+        if (!fireAndForget) {
+            done.await();
+        }
     }
 
     @Override
@@ -69,7 +75,7 @@ public class FirebaseUserRepository implements UserRepository {
 
     @Override
     public Canceller onUpdate(Executor ex, String email, OnUserUpdate listener) {
-        ValueEventListener onChange = new ValueEventListener() {
+        ValueEventListener profileChange = new ValueEventListener() {
             boolean initial = true;
 
             @Override
@@ -79,7 +85,9 @@ public class FirebaseUserRepository implements UserRepository {
                     return;
                 }
                 User user = node.getValue(User.class);
-                ex.execute(() -> listener.updated(user));
+                boolean updatedContacts = !email.equals(user.getEmail()) ||
+                        user.getContacts().containsKey(Schema.legalize(email));
+                ex.execute(() -> listener.updated(user, updatedContacts));
             }
 
             @Override
@@ -87,8 +95,8 @@ public class FirebaseUserRepository implements UserRepository {
             }
         };
         DatabaseReference ref = usersNode.child(Schema.legalize(email));
-        ref.addValueEventListener(onChange);
-        return () -> ref.removeEventListener(onChange);
+        ref.addValueEventListener(profileChange);
+        return () -> ref.removeEventListener(profileChange);
     }
 
 }

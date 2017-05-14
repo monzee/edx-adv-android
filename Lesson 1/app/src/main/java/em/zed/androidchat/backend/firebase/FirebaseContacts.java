@@ -29,8 +29,11 @@ public class FirebaseContacts implements Contacts.Service {
         User fetched = getUser(user.getEmail());
         Map<String, Boolean> fixed = new HashMap<>();
         Map<String, Boolean> contacts = fetched.getContacts();
-        for (String key : contacts.keySet()) {
-            fixed.put(Schema.illegalize(key), contacts.get(key));
+        if (contacts != null) {
+            for (String key : contacts.keySet()) {
+                // TODO: consider adding an EmailKey -> email map in the db
+                fixed.put(Schema.illegalize(key), contacts.get(key));
+            }
         }
         user.setContacts(fixed);
     }
@@ -39,10 +42,8 @@ public class FirebaseContacts implements Contacts.Service {
     public boolean addContact(String adder, String addee) throws InterruptedException {
         boolean result = getUser(addee).isOnline();
         Map<String, Object> nodes = new HashMap<>();
-        String left = Schema.legalize(adder);
-        String right = Schema.legalize(addee);
-        nodes.put(Schema.pathTo(left, Schema.CONTACTS, right), result);
-        nodes.put(Schema.pathTo(right, Schema.CONTACTS, left), true);
+        nodes.put(Schema.pathTo(adder, Schema.CONTACTS, addee), result);
+        nodes.put(Schema.pathTo(addee, Schema.CONTACTS, adder), true);
         usersNode.updateChildren(nodes);
         return result;
     }
@@ -66,14 +67,13 @@ public class FirebaseContacts implements Contacts.Service {
         Map<String, Object> nodes = new HashMap<>();
         nodes.put(Schema.pathTo(fk, Schema.ONLINE), status);
         for (String email : user.getContacts().keySet()) {
-            // email is already encoded
             nodes.put(Schema.pathTo(email, Schema.CONTACTS, fk), status);
         }
         usersNode.updateChildren(nodes);
     }
 
     private User getUser(String email) throws InterruptedException {
-        Either.Wait<RuntimeException, User> result = new Either.Wait<>();
+        Either.Unchecked<User> result = new Either.Unchecked<>();
         usersNode.child(Schema.legalize(email))
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override

@@ -86,6 +86,11 @@ public class FakeUserRepository implements UserRepository {
     }
 
     @Override
+    public void put(User user, boolean fireAndForget) {
+        put(user);
+    }
+
+    @Override
     public Canceller onUpdate(String email, OnUserUpdate listener) {
         return onUpdate(Globals.IMMEDIATE, email, listener);
     }
@@ -120,7 +125,7 @@ public class FakeUserRepository implements UserRepository {
             User user = getByEmail(key);
             for (Watcher w : watchers) {
                 OnUserUpdate listener = w.listener;
-                w.ex.execute(() -> listener.updated(user));
+                w.ex.execute(() -> listener.updated(user, false));
             }
         }
     }

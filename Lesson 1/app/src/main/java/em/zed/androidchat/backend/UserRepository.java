@@ -11,7 +11,11 @@ import edu.galileo.android.androidchat.contactlist.entities.User;
 public interface UserRepository {
 
     interface OnUserUpdate {
-        void updated(User user);
+        /**
+         * @param user the updated profile object
+         * @param contacts if false, it means only the profile info changed
+         */
+        void updated(User user, boolean contacts);
     }
 
     interface Canceller {
@@ -21,6 +25,7 @@ public interface UserRepository {
 
     User getByEmail(String email) throws InterruptedException;
     void put(User user) throws InterruptedException;
+    void put(User user, boolean fireAndForget) throws InterruptedException;
     Canceller onUpdate(String email, OnUserUpdate listener);
     Canceller onUpdate(Executor ex, String email, OnUserUpdate listener);
 

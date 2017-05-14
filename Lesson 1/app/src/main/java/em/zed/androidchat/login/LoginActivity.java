@@ -8,15 +8,16 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.annotation.StringRes;
+import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
-import android.widget.Toast;
 
 import java.util.EnumSet;
 import java.util.concurrent.ExecutionException;
@@ -195,7 +196,7 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
     }
 
     void say(String message, Object... fmtArgs) {
-        Toast.makeText(this, String.format(message, fmtArgs), Toast.LENGTH_SHORT)
+        Snackbar.make(container, String.format(message, fmtArgs), Snackbar.LENGTH_LONG)
                 .show();
     }
 
@@ -206,12 +207,18 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
             btnSignIn.setEnabled(false);
             btnSignUp.setEnabled(false);
             progressBar.setVisibility(View.VISIBLE);
+            hideSoftKeyboard();
         } else {
             pending = null;
             btnSignIn.setEnabled(true);
             btnSignUp.setEnabled(true);
             progressBar.setVisibility(View.GONE);
         }
+    }
+
+    void hideSoftKeyboard() {
+        InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(container.getWindowToken(), 0);
     }
 
 }

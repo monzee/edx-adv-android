@@ -10,17 +10,44 @@ public interface Auth {
 
     interface Service {
         /**
-         * @return false means the email passed is already registered.
          * TODO: reconsider this API
+         * @return false means the email passed is already registered.
+         * @throws SignUpError e.g. malformed email, weak password
          */
         boolean signUp(String email, String password) throws SignUpError, InterruptedException;
+
+        /**
+         * @return an auth + refresh token pair
+         * @throws AuthError when email/password combo is invalid
+         */
         Tokens login(String email, String password) throws AuthError, InterruptedException;
+
+        /**
+         * @param token the refresh token obtained during initial login
+         * @return fresh tokens
+         * @throws AuthError when email/password combo is invalid
+         */
         Tokens refresh(String token) throws AuthError, InterruptedException;
+
+        /**
+         * @param token auth token to check the validity of
+         */
         Status check(String token) throws InterruptedException;
-        User profile() throws InterruptedException;
+
+        /**
+         * TODO: shouldn't this take an auth token?
+         * @return a user object
+         */
+        User minimalProfile() throws InterruptedException;
+
         void logout(String token) throws InterruptedException;
     }
 
+    /**
+     * GUEST - not logged in or previous auth was revoked
+     * EXPIRED - the last login happened too long ago and needs to be refreshed
+     * LOGGED_IN - the user is currently authenticated
+     */
     enum Status { GUEST, EXPIRED, LOGGED_IN }
 
     class Tokens {

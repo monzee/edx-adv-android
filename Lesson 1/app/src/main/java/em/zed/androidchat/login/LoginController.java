@@ -29,7 +29,7 @@ public class LoginController implements Login.Controller {
     }
 
     public LoginController(Auth.Service auth, Logger log) {
-        this(Executors.newCachedThreadPool(), auth, log);
+        this(Executors.newSingleThreadExecutor(), auth, log);
     }
 
     public LoginController(ExecutorService bg, Auth.Service auth, Logger log) {

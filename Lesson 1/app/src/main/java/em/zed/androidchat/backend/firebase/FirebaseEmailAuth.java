@@ -52,7 +52,7 @@ public class FirebaseEmailAuth implements Auth.Service {
         fbAuth.createUserWithEmailAndPassword(email, password)
                 .addOnSuccessListener(Globals.IMMEDIATE, authResult -> result.ok(true))
                 .addOnFailureListener(Globals.IMMEDIATE, e -> {
-                    LogLevel.E.to(log, e, "#signUp(%s, %s)", email, password);
+                    LogLevel.E.to(log, e, "#signUp");
                     if (e instanceof FirebaseAuthUserCollisionException) {
                         result.ok(false);
                     } else if (e instanceof FirebaseAuthWeakPasswordException ||
@@ -66,7 +66,7 @@ public class FirebaseEmailAuth implements Auth.Service {
                 });
         boolean ok = result.await();
         if (ok) {
-            users.put(new User(email, true, null));
+            users.put(new User(email, true, null), true);
         }
         return ok;
     }
@@ -74,11 +74,12 @@ public class FirebaseEmailAuth implements Auth.Service {
     @Override
     public Auth.Tokens login(String email, String password)
             throws Auth.AuthError, InterruptedException {
+        String refresh = tokenize(email, password);
         Either.Wait<Auth.AuthError, Auth.Tokens> result = new Either.Wait<>();
         fbAuth.signInWithEmailAndPassword(email, password)
                 .addOnSuccessListener(Globals.IMMEDIATE, authResult -> {
                     FirebaseUser u = authResult.getUser();
-                    Auth.Tokens t = new Auth.Tokens(u.getUid(), null);
+                    Auth.Tokens t = new Auth.Tokens(u.getUid(), refresh);
                     result.ok(t);
                 })
                 .addOnFailureListener(Globals.IMMEDIATE, e -> {
@@ -89,15 +90,16 @@ public class FirebaseEmailAuth implements Auth.Service {
                     }
                 });
         Auth.Tokens t = result.await();
-        User u = users.getByEmail(email);
-        u.setOnline(User.ONLINE);
-        contacts.broadcastStatus(u);
+        // this has to be here because the success listener is called in the
+        // main thread
+        contacts.broadcastStatus(new User(email, true, null));
         return t;
     }
 
     @Override
-    public Auth.Tokens refresh(String token) throws Auth.AuthError {
-        throw new Auth.CannotRefresh();
+    public Auth.Tokens refresh(String token) throws Auth.AuthError, InterruptedException {
+        String[] parts = split(token);
+        return login(parts[0], parts[1]);
     }
 
     @Override
@@ -106,11 +108,11 @@ public class FirebaseEmailAuth implements Auth.Service {
         if (user != null && token != null && token.equals(user.getUid())) {
             return Auth.Status.LOGGED_IN;
         }
-        return Auth.Status.GUEST;
+        return token == null ? Auth.Status.GUEST : Auth.Status.EXPIRED;
     }
 
     @Override
-    public User profile() throws InterruptedException {
+    public User minimalProfile() {
         FirebaseUser user = fbAuth.getCurrentUser();
         if (user == null) {
             return null;
@@ -128,6 +130,20 @@ public class FirebaseEmailAuth implements Auth.Service {
         u.setOnline(User.OFFLINE);
         contacts.broadcastStatus(u);
         fbAuth.signOut();
+    }
+
+    private static String tokenize(String left, String right) {
+        return left + '\0' + right;
+    }
+
+    private static String[] split(String token) throws Auth.CannotRefresh {
+        if (token != null) {
+            int i = token.indexOf(0);
+            if (i > -1) {
+                return new String[]{token.substring(0, i), token.substring(i)};
+            }
+        }
+        throw new Auth.CannotRefresh();
     }
 
 }

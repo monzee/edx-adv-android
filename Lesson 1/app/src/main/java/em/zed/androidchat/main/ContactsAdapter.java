@@ -4,6 +4,7 @@
 
 package em.zed.androidchat.main;
 
+import android.graphics.Color;
 import android.support.annotation.NonNull;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
@@ -22,7 +23,8 @@ import de.hdodenhof.circleimageview.CircleImageView;
 import edu.galileo.android.androidchat.R;
 import edu.galileo.android.androidchat.contactlist.entities.User;
 
-public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.Contact> {
+public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.Contact>
+        implements Main.DisplayPort {
 
     public class Contact extends RecyclerView.ViewHolder {
 
@@ -45,7 +47,13 @@ public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.Contac
         void bind(User row) {
             user = row;
             contact.setText(row.getEmail());
-            status.setText(row.isOnline() ? null : "offline");
+            if (row.isOnline()) {
+                status.setText("online");
+                status.setTextColor(Color.GREEN);
+            } else {
+                status.setText("offline");
+                status.setTextColor(Color.GRAY);
+            }
         }
     }
 
@@ -78,14 +86,15 @@ public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.Contac
         return items.size();
     }
 
-    Main.Model setContacts(List<User> items) {
+    @Override
+    public void replace(List<User> items) {
         this.items = items;
         reindex();
         notifyDataSetChanged();
-        return sync();
     }
 
-    Main.Model addContact(@NonNull User contact) {
+    @Override
+    public Main.Model add(@NonNull User contact) {
         int pos = items.size();
         items.add(contact);
         byEmail.put(contact.getEmail(), pos);
@@ -93,18 +102,20 @@ public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.Contac
         return sync();
     }
 
-    Main.Model updateContact(@NonNull User contact) {
+    @Override
+    public Main.Model update(@NonNull User contact) {
         Integer i = byEmail.get(contact.getEmail());
         if (i != null) {
             items.set(i, contact);
             notifyItemChanged(i);
         } else {
-            addContact(contact);
+            add(contact);
         }
         return sync();
     }
 
-    Main.Model removeContact(@NonNull User contact) {
+    @Override
+    public Main.Model remove(@NonNull User contact) {
         Integer i = byEmail.remove(contact.getEmail());
         if (i != null) {
             items.remove(i.intValue());
@@ -113,7 +124,8 @@ public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.Contac
         return sync();
     }
 
-    Main.Model sync() {
+    @Override
+    public Main.Model sync() {
         return of -> of.idle(items);
     }
 

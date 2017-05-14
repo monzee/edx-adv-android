@@ -44,4 +44,6 @@ public interface Either<E extends Throwable, T> {
         }
     }
 
+    class Unchecked<T> extends Wait<RuntimeException, T> {}
+
 }

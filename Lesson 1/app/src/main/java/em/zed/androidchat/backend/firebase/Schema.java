@@ -38,9 +38,9 @@ public final class Schema {
     }
 
     public static String pathTo(String first, String... segments) {
-        StringBuilder sb = new StringBuilder("/").append(first);
+        StringBuilder sb = new StringBuilder(legalize(first));
         for (String s : segments) {
-            sb.append('/').append(s);
+            sb.append('/').append(legalize(s));
         }
         return sb.toString();
     }
