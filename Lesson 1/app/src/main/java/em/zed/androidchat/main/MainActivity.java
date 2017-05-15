@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -37,16 +38,22 @@ import em.zed.androidchat.login.LoginActivity;
 import static edu.galileo.android.androidchat.AndroidChatApplication.GLOBALS;
 
 public class MainActivity extends AppCompatActivity
-        implements Main.Model.Case, UserRepository.OnUserUpdate {
+        implements UserRepository.OnUserUpdate, Main.Model.Case {
 
     private static class Retained {
-        final ExecutorService bg = GLOBALS.io();
+        final ExecutorService joiner = Executors.newSingleThreadExecutor(runnable -> {
+            Thread t = new Thread(runnable);
+            t.setName("main-activity-joiner-thread");
+            return t;
+        });
+
         final Main.SourcePort will = new MainController(
-                bg,
+                GLOBALS.io(),
                 GLOBALS.auth(),
                 GLOBALS.users(),
                 GLOBALS.contacts(),
                 GLOBALS.logger());
+
         Main.Model state = Main.Model.Case::booting;
         String subtitle;
     }
@@ -54,7 +61,7 @@ public class MainActivity extends AppCompatActivity
     @Bind(R.id.toolbar) Toolbar toolbar;
     @Bind(R.id.recyclerViewContacts) RecyclerView recyclerView;
 
-    private final Queue<Future<?>> pending = new ArrayDeque<>();
+    private final Queue<Future<?>> inProgress = new ArrayDeque<>();
     private final Deque<Main.Model> backlog = new ArrayDeque<>();
     private Retained scope;
     private ContactsAdapter adapter;
@@ -110,11 +117,11 @@ public class MainActivity extends AppCompatActivity
     protected void onPause() {
         super.onPause();
         unwatch();
-        if (pending.isEmpty()) {
+        if (inProgress.isEmpty()) {
             return;
         }
-        while (!pending.isEmpty()) {
-            pending.remove().cancel(true);
+        for (Future<?> future : inProgress) {
+           future.cancel(true);
         }
         scope.state = of -> of.working(backlog);
     }
@@ -140,10 +147,8 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public void updated(User contact, boolean contacts) {
-        if (contacts) {
-            render(adapter.update(contact));
-        }
+    public void updated(User contact) {
+        render(adapter.update(contact));
     }
 
     @Override
@@ -163,8 +168,7 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void loading(Future<Main.Model> result) {
-        Log.d("mz", "#loading");
-        async(result);
+        join(result);
     }
 
     @Override
@@ -179,33 +183,35 @@ public class MainActivity extends AppCompatActivity
         Log.d("mz", "#idle");
         adapter.replace(contacts);
         if (watch == null) {
-            watch = scope.will.observe(this);
+            watch = scope.will.observe(contacts, this);
         }
     }
 
     @Override
     public void removing(Future<Main.Model> result) {
-        async(result);
+        join(result);
     }
 
     @Override
     public void removed(User contact) {
+        unwatch();
         render(adapter.remove(contact));
     }
 
     @Override
     public void adding(Future<Main.Model> result) {
-        async(result);
+        join(result);
     }
 
     @Override
     public void added(User contact) {
+        unwatch();
         render(adapter.add(contact));
     }
 
     @Override
     public void loggingOut(Future<Main.Model> result) {
-        async(result);
+        join(result);
     }
 
     @Override
@@ -216,6 +222,7 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void willChatWith(User contact) {
+        render(adapter.sync());
         // launch chat
     }
 
@@ -237,10 +244,10 @@ public class MainActivity extends AppCompatActivity
         });
     }
 
-    void async(Future<Main.Model> result) {
+    void join(Future<Main.Model> result) {
         Main.Model snapshot = scope.state;
-        AtomicReference<Future<?>> apply = new AtomicReference<>();
-        apply.set(scope.bg.submit(() -> {
+        AtomicReference<Future<?>> join = new AtomicReference<>();
+        join.set(scope.joiner.submit(() -> {
             try {
                 render(result.get());
             } catch (ExecutionException e) {
@@ -248,11 +255,11 @@ public class MainActivity extends AppCompatActivity
             } catch (InterruptedException e) {
                 backlog.add(snapshot);
             } finally {
-                pending.remove(apply.get());
+                inProgress.remove(join.get());
             }
         }));
-        pending.add(apply.get());
-        scope.state = adapter.sync();
+        inProgress.add(join.get());
+        render(adapter.sync());
     }
 
     void unwatch() {

@@ -40,7 +40,7 @@ public interface Main {
     }
 
     interface SourcePort {
-        UserRepository.Canceller observe(UserRepository.OnUserUpdate listener);
+        UserRepository.Canceller observe(List<User> contacts, UserRepository.OnUserUpdate listener);
         Model loadContacts(Auth.Tokens tokens);
         Model addContact(String email);
         Model removeContact(String email);

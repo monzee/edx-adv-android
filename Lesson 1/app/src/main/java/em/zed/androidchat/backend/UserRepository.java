@@ -13,9 +13,8 @@ public interface UserRepository {
     interface OnUserUpdate {
         /**
          * @param user the updated profile object
-         * @param contacts if false, it means only the profile info changed
          */
-        void updated(User user, boolean contacts);
+        void updated(User user);
     }
 
     interface Canceller {

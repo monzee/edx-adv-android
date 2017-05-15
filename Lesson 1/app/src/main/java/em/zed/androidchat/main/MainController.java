@@ -7,7 +7,6 @@ package em.zed.androidchat.main;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -21,11 +20,11 @@ import em.zed.androidchat.backend.UserRepository;
 
 public class MainController implements Main.SourcePort {
 
+    private final ExecutorService bg;
     private final Auth.Service auth;
     private final UserRepository users;
     private final Contacts.Service contacts;
     private final Logger log;
-    private ExecutorService bg;
     private Auth.Tokens tokens;
     private String userEmail;
 
@@ -50,11 +49,25 @@ public class MainController implements Main.SourcePort {
     }
 
     @Override
-    public UserRepository.Canceller observe(UserRepository.OnUserUpdate listener) {
+    public UserRepository.Canceller observe(
+            List<User> userContacts,
+            UserRepository.OnUserUpdate listener) {
         if (userEmail == null) {
             return UserRepository.Canceller.NOOP;
         }
-        return users.onUpdate(userEmail, listener);
+        return users.onUpdate(userEmail, user -> {
+            LogLevel.I.to(log, "#observe");
+            Map<String, Boolean> freshContacts = user.getContacts();
+            if (freshContacts != null) for (User c : userContacts) {
+                LogLevel.D.to(log, c.getEmail());
+                boolean online = contacts.isOnline(c.getEmail(), freshContacts);
+                if (c.isOnline() != online) {
+                    LogLevel.D.to(log, "updated %s: %s", c.getEmail(), online);
+                    c.setOnline(online);
+                    listener.updated(c);
+                }
+            }
+        });
     }
 
     @Override
@@ -71,13 +84,13 @@ public class MainController implements Main.SourcePort {
                     User user = auth.minimalProfile();
                     userEmail = user.getEmail();
                     contacts.fillContacts(user);
-                    List<User> contacts = new ArrayList<>();
+                    List<User> userContacts = new ArrayList<>();
                     Map<String, Boolean> data = user.getContacts();
                     for (String email : data.keySet()) {
-                        contacts.add(new User(email, data.get(email), null));
+                        userContacts.add(new User(email, data.get(email), null));
                     }
-                    LogLevel.D.to(log, "%d contacts", contacts.size());
-                    return of_ -> of_.loaded(userEmail, contacts);
+                    LogLevel.D.to(log, "%d contacts", userContacts.size());
+                    return of_ -> of_.loaded(userEmail, userContacts);
                 case EXPIRED:
                     LogLevel.D.to(log, "EXPIRED");
                     try {
@@ -141,7 +154,7 @@ public class MainController implements Main.SourcePort {
                     LogLevel.D.to(log, "EXPIRED");
                     try {
                         tokens = auth.refresh(tokens.refresh);
-                        return addContact(email);
+                        return removeContact(email);
                     } catch (Auth.CannotRefresh e) {
                         return Main.Model.Case::loggedOut;
                     }

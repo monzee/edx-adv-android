@@ -125,7 +125,7 @@ public class FakeUserRepository implements UserRepository {
             User user = getByEmail(key);
             for (Watcher w : watchers) {
                 OnUserUpdate listener = w.listener;
-                w.ex.execute(() -> listener.updated(user, false));
+                w.ex.execute(() -> listener.updated(user));
             }
         }
     }

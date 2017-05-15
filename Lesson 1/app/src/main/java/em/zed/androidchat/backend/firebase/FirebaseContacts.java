@@ -62,7 +62,7 @@ public class FirebaseContacts implements Contacts.Service {
         if (user.getContacts() == null) {
             fillContacts(user);
         }
-        String fk = Schema.legalize(user.getEmail());
+        String fk = user.getEmail();
         boolean status = user.isOnline();
         Map<String, Object> nodes = new HashMap<>();
         nodes.put(Schema.pathTo(fk, Schema.ONLINE), status);
@@ -70,6 +70,12 @@ public class FirebaseContacts implements Contacts.Service {
             nodes.put(Schema.pathTo(email, Schema.CONTACTS, fk), status);
         }
         usersNode.updateChildren(nodes);
+    }
+
+    @Override
+    public boolean isOnline(String email, Map<String, Boolean> contacts) {
+        Boolean value = contacts.get(Schema.legalize(email));
+        return value != null && value;
     }
 
     private User getUser(String email) throws InterruptedException {

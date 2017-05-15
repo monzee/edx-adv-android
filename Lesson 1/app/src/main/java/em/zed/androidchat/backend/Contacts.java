@@ -4,6 +4,8 @@
 
 package em.zed.androidchat.backend;
 
+import java.util.Map;
+
 import edu.galileo.android.androidchat.contactlist.entities.User;
 
 public interface Contacts {
@@ -37,6 +39,16 @@ public interface Contacts {
          * argument has a non-null contacts field, this can be safely ignored.
          */
         void broadcastStatus(User user) throws InterruptedException;
+
+        /**
+         * This is needed because the email key in the contacts map may not be
+         * necessarily in the same format as the email.
+         *
+         * @param email email formatted for display
+         * @param contacts the presence map
+         * @return the value of the email in the presence map
+         */
+        boolean isOnline(String email, Map<String, Boolean> contacts);
     }
 
 }

@@ -84,10 +84,7 @@ public class FirebaseUserRepository implements UserRepository {
                     initial = false;
                     return;
                 }
-                User user = node.getValue(User.class);
-                boolean updatedContacts = !email.equals(user.getEmail()) ||
-                        user.getContacts().containsKey(Schema.legalize(email));
-                ex.execute(() -> listener.updated(user, updatedContacts));
+                ex.execute(() -> listener.updated(node.getValue(User.class)));
             }
 
             @Override
