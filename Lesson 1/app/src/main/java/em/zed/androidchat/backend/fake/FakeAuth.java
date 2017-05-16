@@ -19,7 +19,6 @@ public class FakeAuth implements Auth.Service {
     private final ReadWriteLock locks = new ReentrantReadWriteLock();
     private final Map<String, String> accounts = new HashMap<>();
     private final FakeUserRepository users;
-    private String lastChecked;
 
     public FakeAuth() {
         this(Collections.emptyMap());
@@ -81,38 +80,42 @@ public class FakeAuth implements Auth.Service {
     }
 
     @Override
-    public Auth.Tokens refresh(String token) throws Auth.AuthError {
-        throw new Auth.CannotRefresh();
-    }
+    public Auth.Session start(Auth.Tokens tokens) {
+        return new Auth.Session() {
+            Auth.Tokens t = tokens;
 
-    @Override
-    public Auth.Status check(String token) {
-        lastChecked = token;
-        if (accounts.containsKey(token)) {
-            return Auth.Status.LOGGED_IN;
-        }
-        return Auth.Status.GUEST;
-    }
+            @Override
+            public Auth.Status check() {
+                if (accounts.containsKey(t.auth)) {
+                    return Auth.Status.LOGGED_IN;
+                }
+                return Auth.Status.GUEST;
+            }
 
-    /**
-     * Needs to do a {@link #check(String)} first before this could work.
-     *
-     * @return the user row of the last token checked
-     */
-    @Override
-    public User minimalProfile() {
-        if (lastChecked == null || !accounts.containsKey(lastChecked)) {
-            return null;
-        }
-        return users.getByEmail(lastChecked);
-    }
+            @Override
+            public boolean refresh() {
+                return false;
+            }
 
-    @Override
-    public void logout(String token) {
-        User u = users.getByEmail(token);
-        u.setOnline(User.OFFLINE);
-        users.put(u);
-        lastChecked = null;
-    }
+            @Override
+            public Auth.Tokens current() {
+                return t;
+            }
 
+            @Override
+            public User minimalProfile() {
+                if (t.auth == null || !accounts.containsKey(t.auth)) {
+                    return null;
+                }
+                return users.getByEmail(t.auth);
+            }
+
+            @Override
+            public void logout() {
+                User u = users.getByEmail(t.auth);
+                u.setOnline(User.OFFLINE);
+                users.put(u);
+            }
+        };
+    }
 }

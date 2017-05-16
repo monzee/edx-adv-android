@@ -25,19 +25,21 @@ public final class Schema {
      */
 
     public static final String USERS = "users";
-    public static final String CONTACTS = "contacts";
-    public static final String EMAIL = "email";
-    public static final String ONLINE = "online";
+    public static final String CHATS = "chats";
 
-    public static String legalize(String key) {
+    static final String CONTACTS = "contacts";
+    static final String EMAIL = "email";
+    static final String ONLINE = "online";
+
+    static String legalize(String key) {
         return key.replaceAll("[.$#\\[\\]]", "_");
     }
 
-    public static String illegalize(String key) {
+    static String illegalize(String key) {
         return key.replaceAll("_", ".");
     }
 
-    public static String pathTo(String first, String... segments) {
+    static String pathTo(String first, String... segments) {
         StringBuilder sb = new StringBuilder(legalize(first));
         for (String s : segments) {
             sb.append('/').append(legalize(s));

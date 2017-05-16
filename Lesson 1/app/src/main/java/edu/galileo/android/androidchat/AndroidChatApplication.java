@@ -17,6 +17,7 @@ import em.zed.androidchat.Lazy;
 import em.zed.androidchat.Logger;
 import em.zed.androidchat.backend.Auth;
 import em.zed.androidchat.backend.Contacts;
+import em.zed.androidchat.backend.Files;
 import em.zed.androidchat.backend.UserRepository;
 import em.zed.androidchat.backend.firebase.FirebaseContacts;
 import em.zed.androidchat.backend.firebase.FirebaseEmailAuth;
@@ -43,6 +44,11 @@ public class AndroidChatApplication extends Application implements Globals {
         }
 
         @Override
+        public Files.Service dataFiles() {
+            return delegate.dataFiles();
+        }
+
+        @Override
         public UserRepository users() {
             return delegate.users();
         }
@@ -60,8 +66,17 @@ public class AndroidChatApplication extends Application implements Globals {
 
     private static Globals delegate = Globals.DEFAULT;
 
+    private final Lazy<FirebaseDatabase> fbRoot = new Lazy<>(() -> {
+        FirebaseDatabase db = FirebaseDatabase.getInstance();
+        db.setPersistenceEnabled(true);
+        return db;
+    });
+
     private final Lazy<DatabaseReference> usersNode = new Lazy<>(() ->
-            FirebaseDatabase.getInstance().getReference(Schema.USERS));
+            fbRoot.get().getReference(Schema.USERS));
+
+    private final Lazy<DatabaseReference> chatsNode = new Lazy<>(() ->
+            fbRoot.get().getReference(Schema.CHATS));
 
     private final Lazy<UserRepository> users = new Lazy<>(() ->
             new FirebaseUserRepository(usersNode.get()));
@@ -80,8 +95,6 @@ public class AndroidChatApplication extends Application implements Globals {
     @Override
     public void onCreate() {
         super.onCreate();
-        setupFirebase();
-        setupImageLoader();
         delegate = this;
     }
 
@@ -101,6 +114,11 @@ public class AndroidChatApplication extends Application implements Globals {
     }
 
     @Override
+    public Files.Service dataFiles() {
+        return new Files.Service(getDir("hands-off", MODE_PRIVATE));
+    }
+
+    @Override
     public UserRepository users() {
         return users.get();
     }
@@ -115,16 +133,11 @@ public class AndroidChatApplication extends Application implements Globals {
         return new AndroidLog("mz");
     }
 
-    private void setupImageLoader() {
-        imageLoader = new GlideImageLoader(this);
-    }
-
     public ImageLoader getImageLoader() {
+        if (imageLoader == null) {
+            imageLoader = new GlideImageLoader(this);
+        }
         return imageLoader;
-    }
-
-    private void setupFirebase(){
-        FirebaseDatabase.getInstance().setPersistenceEnabled(true);
     }
 
 }

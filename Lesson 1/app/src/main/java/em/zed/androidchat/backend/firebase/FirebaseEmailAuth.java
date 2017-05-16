@@ -97,53 +97,69 @@ public class FirebaseEmailAuth implements Auth.Service {
     }
 
     @Override
-    public Auth.Tokens refresh(String token) throws Auth.AuthError, InterruptedException {
-        String[] parts = split(token);
-        return login(parts[0], parts[1]);
-    }
+    public Auth.Session start(Auth.Tokens tokens) {
+        return new Auth.Session() {
+            Auth.Tokens t = tokens;
 
-    @Override
-    public Auth.Status check(String token) {
-        FirebaseUser user = fbAuth.getCurrentUser();
-        if (user != null && token != null && token.equals(user.getUid())) {
-            return Auth.Status.LOGGED_IN;
-        }
-        return token == null ? Auth.Status.GUEST : Auth.Status.EXPIRED;
-    }
+            @Override
+            public Auth.Status check() throws InterruptedException {
+                FirebaseUser user = fbAuth.getCurrentUser();
+                if (user != null && t.auth != null && t.auth.equals(user.getUid())) {
+                    return Auth.Status.LOGGED_IN;
+                }
+                return t.auth == null ? Auth.Status.GUEST : Auth.Status.EXPIRED;
+            }
 
-    @Override
-    public User minimalProfile() {
-        FirebaseUser user = fbAuth.getCurrentUser();
-        if (user == null) {
-            return null;
-        }
-        return new User(user.getEmail(), true, null);
-    }
+            @Override
+            public boolean refresh() throws Auth.AuthError, InterruptedException {
+                String[] parts = split(t.refresh);
+                if (parts == null) {
+                    return false;
+                }
+                t = login(parts[0], parts[1]);
+                return true;
+            }
 
-    @Override
-    public void logout(String token) throws InterruptedException {
-        FirebaseUser currentUser = fbAuth.getCurrentUser();
-        if (currentUser == null) {
-            return;
-        }
-        User u = users.getByEmail(currentUser.getEmail());
-        u.setOnline(User.OFFLINE);
-        contacts.broadcastStatus(u);
-        fbAuth.signOut();
+            @Override
+            public Auth.Tokens current() {
+                return t;
+            }
+
+            @Override
+            public User minimalProfile() {
+                FirebaseUser user = fbAuth.getCurrentUser();
+                if (user == null) {
+                    return null;
+                }
+                return new User(user.getEmail(), true, null);
+            }
+
+            @Override
+            public void logout() throws InterruptedException {
+                FirebaseUser currentUser = fbAuth.getCurrentUser();
+                if (currentUser == null) {
+                    return;
+                }
+                User u = users.getByEmail(currentUser.getEmail());
+                u.setOnline(User.OFFLINE);
+                contacts.broadcastStatus(u);
+                fbAuth.signOut();
+            }
+        };
     }
 
     private static String tokenize(String left, String right) {
         return left + '\0' + right;
     }
 
-    private static String[] split(String token) throws Auth.CannotRefresh {
+    private static String[] split(String token) {
         if (token != null) {
             int i = token.indexOf(0);
             if (i > -1) {
                 return new String[]{token.substring(0, i), token.substring(i)};
             }
         }
-        throw new Auth.CannotRefresh();
+        return null;
     }
 
 }

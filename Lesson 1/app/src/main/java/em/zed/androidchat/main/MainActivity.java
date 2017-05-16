@@ -4,6 +4,7 @@
 
 package em.zed.androidchat.main;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
@@ -16,10 +17,12 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
-import java.util.Queue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -31,7 +34,11 @@ import butterknife.ButterKnife;
 import butterknife.OnClick;
 import edu.galileo.android.androidchat.R;
 import edu.galileo.android.androidchat.contactlist.entities.User;
+import em.zed.androidchat.FirebaseLog;
+import em.zed.androidchat.LogLevel;
+import em.zed.androidchat.Logger;
 import em.zed.androidchat.backend.Auth;
+import em.zed.androidchat.backend.Files;
 import em.zed.androidchat.backend.UserRepository;
 import em.zed.androidchat.login.LoginActivity;
 
@@ -40,43 +47,66 @@ import static edu.galileo.android.androidchat.AndroidChatApplication.GLOBALS;
 public class MainActivity extends AppCompatActivity
         implements UserRepository.OnUserUpdate, Main.Model.Case {
 
+    private static final String AUTH_FILE = "cookie-jar";
+
     private static class Retained {
-        final ExecutorService joiner = Executors.newSingleThreadExecutor(runnable -> {
+        final ExecutorService io = GLOBALS.io();
+        final ExecutorService junction = Executors.newSingleThreadExecutor(runnable -> {
             Thread t = new Thread(runnable);
             t.setName("main-activity-joiner-thread");
             return t;
         });
+        final Logger log = new FirebaseLog("main!");
+        final Files.Service files = GLOBALS.dataFiles();
+        final Deque<Main.Model> backlog = new ArrayDeque<>();
+        final MainController.Builder ctrlBuilder = new MainController
+                .Builder(GLOBALS.users(), GLOBALS.contacts())
+                .withExecutorService(io)
+                .withLogger(log);
 
-        final Main.SourcePort will = new MainController(
-                GLOBALS.io(),
-                GLOBALS.auth(),
-                GLOBALS.users(),
-                GLOBALS.contacts(),
-                GLOBALS.logger());
-
+        Main.SourcePort will = ctrlBuilder.build(Auth.NO_SESSION);
         Main.Model state = Main.Model.Case::booting;
         String subtitle;
+
+        void login(Auth.Tokens t) {
+            will = ctrlBuilder.build(GLOBALS.auth().start(t));
+        }
     }
 
     @Bind(R.id.toolbar) Toolbar toolbar;
     @Bind(R.id.recyclerViewContacts) RecyclerView recyclerView;
 
-    private final Queue<Future<?>> inProgress = new ArrayDeque<>();
-    private final Deque<Main.Model> backlog = new ArrayDeque<>();
+    private final Deque<Future<?>> inProgress = new ArrayDeque<>();
     private Retained scope;
     private ContactsAdapter adapter;
     private UserRepository.Canceller watch;
 
+    @SuppressLint("NewApi")
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         scope = (Retained) getLastCustomNonConfigurationInstance();
         if (scope == null) {
             scope = new Retained();
+            try {
+                scope.files.read(AUTH_FILE, (in, isNew) -> {
+                    if (!isNew) {
+                        try (ObjectInputStream file = new ObjectInputStream(in)) {
+                            String auth = file.readUTF();
+                            String refresh = file.readUTF();
+                            scope.login(new Auth.Tokens(auth, refresh));
+                            jump(scope.will.loadContacts());
+                        }
+                    }
+                });
+            } catch (IOException e) {
+                LogLevel.E.to(scope.log, e);
+            }
         }
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_contact_list);
         ButterKnife.bind(this);
-        toolbar.setTitle(R.string.contactlist_title);
+        toolbar.setTitle(getTitle());
         toolbar.setSubtitle(scope.subtitle);
         setSupportActionBar(toolbar);
         adapter = new ContactsAdapter(new ContactsAdapter.Hook() {
@@ -95,6 +125,7 @@ public class MainActivity extends AppCompatActivity
         recyclerView.setAdapter(adapter);
     }
 
+    @SuppressLint("NewApi")
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         Log.d("mz", "#onActivityResult");
@@ -104,7 +135,21 @@ public class MainActivity extends AppCompatActivity
         }
         String auth = data.getStringExtra(LoginActivity.TOKEN_AUTH);
         String refresh = data.getStringExtra(LoginActivity.TOKEN_REFRESH);
-        scope.state = scope.will.loadContacts(new Auth.Tokens(auth, refresh));
+        scope.io.execute(() -> {
+            try {
+                scope.files.delete(AUTH_FILE);
+                scope.files.write(AUTH_FILE, out -> {
+                    try (ObjectOutputStream file = new ObjectOutputStream(out)) {
+                        file.writeUTF(auth);
+                        file.writeUTF(refresh);
+                    }
+                });
+            } catch (IOException e) {
+                LogLevel.E.to(scope.log, e);
+            }
+        });
+        scope.login(new Auth.Tokens(auth, refresh));
+        jump(scope.will.loadContacts());
     }
 
     @Override
@@ -123,7 +168,7 @@ public class MainActivity extends AppCompatActivity
         for (Future<?> future : inProgress) {
            future.cancel(true);
         }
-        scope.state = of -> of.working(backlog);
+        jump(of -> of.replay(scope.backlog));
     }
 
     @Override
@@ -158,17 +203,17 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public void working(Deque<Main.Model> backlog) {
+    public void replay(Deque<Main.Model> backlog) {
         Main.Model last = backlog.removeLast();
-        for (Main.Model model : backlog) {
-            model.match(this);
+        while (!backlog.isEmpty()) {
+            backlog.pop().match(this);
         }
         render(last);
     }
 
     @Override
-    public void loading(Future<Main.Model> result) {
-        join(result);
+    public void loading(Future<Main.Model> task) {
+        join(task);
     }
 
     @Override
@@ -188,8 +233,8 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public void removing(Future<Main.Model> result) {
-        join(result);
+    public void removing(Future<Main.Model> task) {
+        join(task);
     }
 
     @Override
@@ -199,8 +244,8 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public void adding(Future<Main.Model> result) {
-        join(result);
+    public void adding(Future<Main.Model> task) {
+        join(task);
     }
 
     @Override
@@ -210,24 +255,36 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public void loggingOut(Future<Main.Model> result) {
-        join(result);
+    public void loggingOut(Future<Main.Model> task) {
+        join(task);
     }
 
     @Override
     public void loggedOut() {
         unwatch();
-        booting();
+        scope.io.execute(() -> {
+            try {
+                scope.files.delete(AUTH_FILE);
+            } catch (IOException e) {
+                LogLevel.E.to(scope.log, e);
+            }
+        });
+        render(Main.Model.Case::booting);
     }
 
     @Override
     public void willChatWith(User contact) {
-        render(adapter.sync());
+        jump(adapter.sync());
         // launch chat
     }
 
     @Override
     public void error(Throwable e) {
+        if (e instanceof Auth.AuthError) {
+            LogLevel.I.to(scope.log, e);
+            render(Main.Model.Case::loggedOut);
+            return;
+        }
         throw new RuntimeException(e);
     }
 
@@ -235,6 +292,10 @@ public class MainActivity extends AppCompatActivity
     void add() {
         // show dialog, receive email
         // call controller.addContact
+    }
+
+    void jump(Main.Model newState) {
+        scope.state = newState;
     }
 
     void render(Main.Model newState) {
@@ -247,19 +308,19 @@ public class MainActivity extends AppCompatActivity
     void join(Future<Main.Model> result) {
         Main.Model snapshot = scope.state;
         AtomicReference<Future<?>> join = new AtomicReference<>();
-        join.set(scope.joiner.submit(() -> {
+        join.set(scope.junction.submit(() -> {
             try {
                 render(result.get());
             } catch (ExecutionException e) {
-                render(of -> of.error(e));
+                render(of -> of.error(e.getCause()));
             } catch (InterruptedException e) {
-                backlog.add(snapshot);
+                scope.backlog.push(snapshot);
             } finally {
                 inProgress.remove(join.get());
             }
         }));
-        inProgress.add(join.get());
-        render(adapter.sync());
+        inProgress.push(join.get());
+        jump(adapter.sync());
     }
 
     void unwatch() {

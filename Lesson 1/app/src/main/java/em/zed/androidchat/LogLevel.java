@@ -14,7 +14,7 @@ public enum LogLevel {
     }
 
     public void to(Logger logger, Throwable e) {
-        to(logger, null, e);
+        to(logger, e, "");
     }
 
     public void to(Logger logger, Throwable e, String message, Object... fmtArgs) {

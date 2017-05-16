@@ -22,26 +22,43 @@ public interface Auth {
          */
         Tokens login(String email, String password) throws AuthError, InterruptedException;
 
-        /**
-         * @param token the refresh token obtained during initial login
-         * @return fresh tokens
-         * @throws AuthError when email/password combo is invalid
-         */
-        Tokens refresh(String token) throws AuthError, InterruptedException;
-
-        /**
-         * @param token auth token to check the validity of
-         */
-        Status check(String token) throws InterruptedException;
-
-        /**
-         * TODO: shouldn't this take an auth token?
-         * @return a user object
-         */
-        User minimalProfile() throws InterruptedException;
-
-        void logout(String token) throws InterruptedException;
+        Session start(Tokens tokens);
     }
+
+    interface Session {
+        Status check() throws InterruptedException;
+        boolean refresh() throws AuthError, InterruptedException;
+        Tokens current();
+        User minimalProfile() throws InterruptedException;
+        void logout() throws InterruptedException;
+    }
+
+    Session NO_SESSION = new Session() {
+        @Override
+        public Status check() {
+            throw new IllegalStateException("Not authenticated.");
+        }
+
+        @Override
+        public boolean refresh() {
+            throw new IllegalStateException("Not authenticated.");
+        }
+
+        @Override
+        public Tokens current() {
+            throw new IllegalStateException("Not authenticated.");
+        }
+
+        @Override
+        public User minimalProfile() {
+            throw new IllegalStateException("Not authenticated.");
+        }
+
+        @Override
+        public void logout() {
+            throw new IllegalStateException("Not authenticated.");
+        }
+    };
 
     /**
      * GUEST - not logged in or previous auth was revoked
@@ -80,12 +97,6 @@ public interface Auth {
     class BadPassword extends AuthError {
         public BadPassword(String email) {
             super("Wrong password for email: " + email);
-        }
-    }
-
-    class CannotRefresh extends AuthError {
-        public CannotRefresh() {
-            super("Refresh token expired.");
         }
     }
 

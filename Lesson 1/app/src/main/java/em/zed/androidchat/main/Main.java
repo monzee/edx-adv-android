@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.concurrent.Future;
 
 import edu.galileo.android.androidchat.contactlist.entities.User;
-import em.zed.androidchat.backend.Auth;
 import em.zed.androidchat.backend.UserRepository;
 
 public interface Main {
@@ -19,19 +18,19 @@ public interface Main {
 
         interface Case {
             void booting();
-            void working(Deque<Model> backlog);
+            void replay(Deque<Model> backlog);
 
-            void loading(Future<Model> result);
+            void loading(Future<Model> task);
             void loaded(String userEmail, List<User> contacts);
             void idle(List<User> contacts);
 
-            void removing(Future<Model> result);
+            void removing(Future<Model> task);
             void removed(User contact);
 
-            void adding(Future<Model> result);
+            void adding(Future<Model> task);
             void added(User contact);
 
-            void loggingOut(Future<Model> result);
+            void loggingOut(Future<Model> task);
             void loggedOut();
 
             void willChatWith(User contact);
@@ -41,7 +40,7 @@ public interface Main {
 
     interface SourcePort {
         UserRepository.Canceller observe(List<User> contacts, UserRepository.OnUserUpdate listener);
-        Model loadContacts(Auth.Tokens tokens);
+        Model loadContacts();
         Model addContact(String email);
         Model removeContact(String email);
         Model logout();
