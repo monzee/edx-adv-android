@@ -13,7 +13,6 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
@@ -23,6 +22,7 @@ import java.util.EnumSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
@@ -112,7 +112,7 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
             try {
                 render(result.get());
             } catch (ExecutionException e) {
-                render(of -> of.error(e));
+                render(of -> of.error(e.getCause()));
             } catch (InterruptedException ignored) {
             }
         });
@@ -141,7 +141,7 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
             try {
                 render(result.get());
             } catch (ExecutionException e) {
-                render(of -> of.error(e));
+                render(of -> of.error(e.getCause()));
             } catch (InterruptedException ignored) {
             }
         });
@@ -167,6 +167,11 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
 
     @Override
     public void error(Throwable e) {
+        if (e instanceof TimeoutException) {
+            say("Request has taken too long. Try again later.");
+            render(Login.Model.Case::idle);
+            return;
+        }
         throw new RuntimeException(e);
     }
 
@@ -204,21 +209,19 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
         inputEmail.setError(null);
         inputPassword.setError(null);
         if (busy) {
+            inputEmail.setEnabled(false);
+            inputPassword.setEnabled(false);
             btnSignIn.setEnabled(false);
             btnSignUp.setEnabled(false);
             progressBar.setVisibility(View.VISIBLE);
-            hideSoftKeyboard();
         } else {
             pending = null;
+            inputEmail.setEnabled(true);
+            inputPassword.setEnabled(true);
             btnSignIn.setEnabled(true);
             btnSignUp.setEnabled(true);
             progressBar.setVisibility(View.GONE);
         }
-    }
-
-    void hideSoftKeyboard() {
-        InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
-        imm.hideSoftInputFromWindow(container.getWindowToken(), 0);
     }
 
 }

@@ -84,6 +84,7 @@ public class MainController implements Main.SourcePort {
                 case LOGGED_IN:
                     User user = session.minimalProfile();
                     userEmail = user.getEmail();
+                    LogLevel.D.to(my.log, "userEmail: %s", userEmail);
                     my.contacts.fillContacts(user);
                     List<User> userContacts = new ArrayList<>();
                     Map<String, Boolean> data = user.getContacts();

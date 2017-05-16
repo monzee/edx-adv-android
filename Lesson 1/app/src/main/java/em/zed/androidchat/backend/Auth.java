@@ -4,6 +4,8 @@
 
 package em.zed.androidchat.backend;
 
+import java.util.concurrent.TimeoutException;
+
 import edu.galileo.android.androidchat.contactlist.entities.User;
 
 public interface Auth {
@@ -14,20 +16,22 @@ public interface Auth {
          * @return false means the email passed is already registered.
          * @throws SignUpError e.g. malformed email, weak password
          */
-        boolean signUp(String email, String password) throws SignUpError, InterruptedException;
+        boolean signUp(String email, String password)
+                throws SignUpError, InterruptedException, TimeoutException;
 
         /**
          * @return an auth + refresh token pair
          * @throws AuthError when email/password combo is invalid
          */
-        Tokens login(String email, String password) throws AuthError, InterruptedException;
+        Tokens login(String email, String password)
+                throws AuthError, InterruptedException, TimeoutException;
 
         Session start(Tokens tokens);
     }
 
     interface Session {
         Status check() throws InterruptedException;
-        boolean refresh() throws AuthError, InterruptedException;
+        boolean refresh() throws AuthError, InterruptedException, TimeoutException;
         Tokens current();
         User minimalProfile() throws InterruptedException;
         void logout() throws InterruptedException;

@@ -11,6 +11,8 @@ import com.google.firebase.auth.FirebaseAuthUserCollisionException;
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException;
 import com.google.firebase.auth.FirebaseUser;
 
+import java.util.concurrent.TimeoutException;
+
 import edu.galileo.android.androidchat.contactlist.entities.User;
 import em.zed.androidchat.Either;
 import em.zed.androidchat.Globals;
@@ -26,12 +28,13 @@ public class FirebaseEmailAuth implements Auth.Service {
     private final Contacts.Service contacts;
     private final FirebaseAuth fbAuth;
     private final Logger log;
+    private final int timeout;
 
     public FirebaseEmailAuth(
             UserRepository users,
             Contacts.Service contacts,
             FirebaseAuth fbAuth) {
-        this(users, contacts, fbAuth, null);
+        this(users, contacts, fbAuth, 0, null);
     }
 
     public FirebaseEmailAuth(
@@ -39,15 +42,25 @@ public class FirebaseEmailAuth implements Auth.Service {
             Contacts.Service contacts,
             FirebaseAuth fbAuth,
             Logger log) {
+        this(users, contacts, fbAuth, 0, log);
+    }
+
+    public FirebaseEmailAuth(
+            UserRepository users,
+            Contacts.Service contacts,
+            FirebaseAuth fbAuth,
+            int timeout,
+            Logger log) {
         this.users = users;
         this.contacts = contacts;
         this.fbAuth = fbAuth;
+        this.timeout = timeout;
         this.log = log;
     }
 
     @Override
     public boolean signUp(String email, String password)
-            throws Auth.SignUpError, InterruptedException {
+            throws Auth.SignUpError, InterruptedException, TimeoutException {
         Either.Wait<Auth.SignUpError, Boolean> result = new Either.Wait<>();
         fbAuth.createUserWithEmailAndPassword(email, password)
                 .addOnSuccessListener(Globals.IMMEDIATE, authResult -> result.ok(true))
@@ -64,7 +77,7 @@ public class FirebaseEmailAuth implements Auth.Service {
                         result.err(new Auth.SignUpError(e.getMessage()));
                     }
                 });
-        boolean ok = result.await();
+        boolean ok = timeout > 0 ? result.await(timeout) : result.await();
         if (ok) {
             users.put(new User(email, true, null), true);
         }
@@ -73,7 +86,7 @@ public class FirebaseEmailAuth implements Auth.Service {
 
     @Override
     public Auth.Tokens login(String email, String password)
-            throws Auth.AuthError, InterruptedException {
+            throws Auth.AuthError, InterruptedException, TimeoutException {
         String refresh = tokenize(email, password);
         Either.Wait<Auth.AuthError, Auth.Tokens> result = new Either.Wait<>();
         fbAuth.signInWithEmailAndPassword(email, password)
@@ -89,7 +102,7 @@ public class FirebaseEmailAuth implements Auth.Service {
                         result.err(new Auth.BadPassword(email));
                     }
                 });
-        Auth.Tokens t = result.await();
+        Auth.Tokens t = timeout > 0 ? result.await(timeout) : result.await();
         // this has to be here because the success listener is called in the
         // main thread
         contacts.broadcastStatus(new User(email, true, null));
@@ -111,7 +124,7 @@ public class FirebaseEmailAuth implements Auth.Service {
             }
 
             @Override
-            public boolean refresh() throws Auth.AuthError, InterruptedException {
+            public boolean refresh() throws Auth.AuthError, InterruptedException, TimeoutException {
                 String[] parts = split(t.refresh);
                 if (parts == null) {
                     return false;

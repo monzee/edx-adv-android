@@ -51,10 +51,8 @@ public class LoginController implements Login.Controller {
                 Auth.Tokens tokens = auth.login(email, password);
                 return of -> of.loggedIn(tokens);
             } catch (Auth.UnknownEmail e) {
-                LogLevel.E.to(log, e);
                 return of -> of.loginFailed(Login.Reason.UNKNOWN_EMAIL);
             } catch (Auth.BadPassword e) {
-                LogLevel.E.to(log, e);
                 return of -> of.loginFailed(Login.Reason.BAD_PASSWORD);
             }
         });
@@ -77,12 +75,10 @@ public class LoginController implements Login.Controller {
                     return of -> of.signUpFailed(setOf());
                 }
             } catch (Auth.EmailRejected e) {
-                LogLevel.E.to(log, e);
                 return of -> of.signUpFailed(setOf(
                         Login.Invalid.EMAIL,
                         Login.Invalid.REJECTED));
             } catch (Auth.PasswordRejected e) {
-                LogLevel.E.to(log, e);
                 return of -> of.signUpFailed(setOf(
                         Login.Invalid.PASSWORD,
                         Login.Invalid.REJECTED));

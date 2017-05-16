@@ -5,6 +5,8 @@
 package em.zed.androidchat;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public interface Either<E extends Throwable, T> {
 
@@ -40,6 +42,14 @@ public interface Either<E extends Throwable, T> {
 
         public T await() throws E, InterruptedException {
             done.await();
+            return either.get();
+        }
+
+        public T await(int millis) throws E, InterruptedException, TimeoutException {
+            done.await(millis, TimeUnit.MILLISECONDS);
+            if (either == null) {
+                throw new TimeoutException();
+            }
             return either.get();
         }
     }

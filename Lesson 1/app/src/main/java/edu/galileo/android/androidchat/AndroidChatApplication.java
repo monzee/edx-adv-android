@@ -88,6 +88,7 @@ public class AndroidChatApplication extends Application implements Globals {
             users.get(),
             contacts.get(),
             FirebaseAuth.getInstance(),
+            Globals.TIMEOUT,
             logger()));
 
     private ImageLoader imageLoader;

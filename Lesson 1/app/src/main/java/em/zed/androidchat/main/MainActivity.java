@@ -4,22 +4,17 @@
 
 package em.zed.androidchat.main;
 
-import android.annotation.SuppressLint;
-import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
+import android.support.v4.app.Fragment;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
@@ -34,20 +29,17 @@ import butterknife.ButterKnife;
 import butterknife.OnClick;
 import edu.galileo.android.androidchat.R;
 import edu.galileo.android.androidchat.contactlist.entities.User;
-import em.zed.androidchat.FirebaseLog;
 import em.zed.androidchat.LogLevel;
 import em.zed.androidchat.Logger;
 import em.zed.androidchat.backend.Auth;
 import em.zed.androidchat.backend.Files;
 import em.zed.androidchat.backend.UserRepository;
-import em.zed.androidchat.login.LoginActivity;
+import em.zed.androidchat.concerns.SessionFragment;
 
 import static edu.galileo.android.androidchat.AndroidChatApplication.GLOBALS;
 
 public class MainActivity extends AppCompatActivity
         implements UserRepository.OnUserUpdate, Main.Model.Case {
-
-    private static final String AUTH_FILE = "cookie-jar";
 
     private static class Retained {
         final ExecutorService io = GLOBALS.io();
@@ -56,7 +48,7 @@ public class MainActivity extends AppCompatActivity
             t.setName("main-activity-joiner-thread");
             return t;
         });
-        final Logger log = new FirebaseLog("main!");
+        final Logger log = GLOBALS.logger();
         final Files.Service files = GLOBALS.dataFiles();
         final Deque<Main.Model> backlog = new ArrayDeque<>();
         final MainController.Builder ctrlBuilder = new MainController
@@ -80,33 +72,19 @@ public class MainActivity extends AppCompatActivity
     private Retained scope;
     private ContactsAdapter adapter;
     private UserRepository.Canceller watch;
+    private SessionFragment session;
 
-    @SuppressLint("NewApi")
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         scope = (Retained) getLastCustomNonConfigurationInstance();
         if (scope == null) {
             scope = new Retained();
-            try {
-                scope.files.read(AUTH_FILE, (in, isNew) -> {
-                    if (!isNew) {
-                        try (ObjectInputStream file = new ObjectInputStream(in)) {
-                            String auth = file.readUTF();
-                            String refresh = file.readUTF();
-                            scope.login(new Auth.Tokens(auth, refresh));
-                            jump(scope.will.loadContacts());
-                        }
-                    }
-                });
-            } catch (IOException e) {
-                LogLevel.E.to(scope.log, e);
-            }
         }
-
         super.onCreate(savedInstanceState);
+        SessionFragment.attach(getSupportFragmentManager());
         setContentView(R.layout.activity_contact_list);
         ButterKnife.bind(this);
-        toolbar.setTitle(getTitle());
+        toolbar.setTitle(R.string.contactlist_title);
         toolbar.setSubtitle(scope.subtitle);
         setSupportActionBar(toolbar);
         adapter = new ContactsAdapter(new ContactsAdapter.Hook() {
@@ -125,31 +103,26 @@ public class MainActivity extends AppCompatActivity
         recyclerView.setAdapter(adapter);
     }
 
-    @SuppressLint("NewApi")
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        Log.d("mz", "#onActivityResult");
-        if (requestCode != LoginActivity.RESULT || resultCode != RESULT_OK) {
-            finish();
-            return;
+    public void onAttachFragment(Fragment fragment) {
+        if (fragment instanceof SessionFragment) {
+            session = ((SessionFragment) fragment).inject(
+                    scope.io,
+                    scope.files,
+                    scope.log,
+                    new SessionFragment.Pipe() {
+                        @Override
+                        public void send(Auth.Tokens tokens) {
+                            scope.login(tokens);
+                            render(scope.will.loadContacts());
+                        }
+
+                        @Override
+                        public void cancelled() {
+                            finish();
+                        }
+                    });
         }
-        String auth = data.getStringExtra(LoginActivity.TOKEN_AUTH);
-        String refresh = data.getStringExtra(LoginActivity.TOKEN_REFRESH);
-        scope.io.execute(() -> {
-            try {
-                scope.files.delete(AUTH_FILE);
-                scope.files.write(AUTH_FILE, out -> {
-                    try (ObjectOutputStream file = new ObjectOutputStream(out)) {
-                        file.writeUTF(auth);
-                        file.writeUTF(refresh);
-                    }
-                });
-            } catch (IOException e) {
-                LogLevel.E.to(scope.log, e);
-            }
-        });
-        scope.login(new Auth.Tokens(auth, refresh));
-        jump(scope.will.loadContacts());
     }
 
     @Override
@@ -198,8 +171,7 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void booting() {
-        Log.d("mz", "#booting");
-        startActivityForResult(new Intent(this, LoginActivity.class), LoginActivity.RESULT);
+        session.start(false);
     }
 
     @Override
@@ -225,7 +197,6 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void idle(List<User> contacts) {
-        Log.d("mz", "#idle");
         adapter.replace(contacts);
         if (watch == null) {
             watch = scope.will.observe(contacts, this);
@@ -262,14 +233,9 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void loggedOut() {
         unwatch();
-        scope.io.execute(() -> {
-            try {
-                scope.files.delete(AUTH_FILE);
-            } catch (IOException e) {
-                LogLevel.E.to(scope.log, e);
-            }
-        });
-        render(Main.Model.Case::booting);
+        session.destroy();
+        session.start(true);
+        jump(Main.Model.Case::booting);
     }
 
     @Override
@@ -296,11 +262,12 @@ public class MainActivity extends AppCompatActivity
 
     void jump(Main.Model newState) {
         scope.state = newState;
+        LogLevel.D.to(scope.log, StateRepr.stringify(newState));
     }
 
     void render(Main.Model newState) {
         runOnUiThread(() -> {
-            scope.state = newState;
+            jump(newState);
             newState.match(this);
         });
     }

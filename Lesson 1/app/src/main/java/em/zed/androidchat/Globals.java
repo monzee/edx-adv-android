@@ -27,6 +27,7 @@ public interface Globals {
     Logger logger();
 
     Executor IMMEDIATE = Runnable::run;
+    int TIMEOUT = 60_000;  // msec
 
     Globals DEFAULT = new Globals() {
         private Lazy<ExecutorService> compute = new Lazy<>(() -> Executors.newFixedThreadPool(4));
