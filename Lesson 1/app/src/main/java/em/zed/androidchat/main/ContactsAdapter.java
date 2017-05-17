@@ -26,6 +26,11 @@ import edu.galileo.android.androidchat.contactlist.entities.User;
 public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.Contact>
         implements Main.DisplayPort {
 
+    public interface Pipe {
+        void click(User user);
+        void longClick(User user);
+    }
+
     public class Contact extends RecyclerView.ViewHolder {
 
         @Bind(R.id.imgAvatar) CircleImageView avatar;
@@ -37,9 +42,9 @@ public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.Contac
         public Contact(View itemView) {
             super(itemView);
             ButterKnife.bind(this, itemView);
-            itemView.setOnClickListener(view -> hook.click(user));
+            itemView.setOnClickListener(view -> pipe.click(user));
             itemView.setOnLongClickListener(view -> {
-                hook.longClick(user);
+                pipe.longClick(user);
                 return true;
             });
         }
@@ -57,17 +62,12 @@ public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.Contac
         }
     }
 
-    public interface Hook {
-        void click(User user);
-        void longClick(User user);
-    }
-
-    private final Hook hook;
+    private final Pipe pipe;
     private List<User> items = Collections.emptyList();
     private Map<String, Integer> byEmail = Collections.emptyMap();
 
-    public ContactsAdapter(Hook hook) {
-        this.hook = hook;
+    public ContactsAdapter(Pipe pipe) {
+        this.pipe = pipe;
     }
 
     @Override

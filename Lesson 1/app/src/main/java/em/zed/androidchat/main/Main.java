@@ -38,6 +38,11 @@ public interface Main {
         }
     }
 
+    interface Machine {
+        void move(Model newState);
+        void apply(Model newState);
+    }
+
     interface SourcePort {
         UserRepository.Canceller observe(List<User> contacts, UserRepository.OnUserUpdate listener);
         Model loadContacts();

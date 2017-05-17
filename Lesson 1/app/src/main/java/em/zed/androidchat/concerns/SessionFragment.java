@@ -25,7 +25,7 @@ import static android.app.Activity.RESULT_OK;
 public class SessionFragment extends Fragment {
 
     public interface Pipe {
-        void send(Auth.Tokens tokens);
+        void loggedIn(Auth.Tokens tokens);
         void cancelled();
     }
 
@@ -69,7 +69,7 @@ public class SessionFragment extends Fragment {
                 } else try (ObjectInputStream file = new ObjectInputStream(in)) {
                     String auth = file.readUTF();
                     String refresh = file.readUTF();
-                    pipe.send(new Auth.Tokens(auth, refresh));
+                    pipe.loggedIn(new Auth.Tokens(auth, refresh));
                 }
             });
         } catch (IOException e) {
@@ -82,7 +82,10 @@ public class SessionFragment extends Fragment {
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         LogLevel.I.to(log, "#onActivityResult");
-        if (requestCode != LoginActivity.RESULT || resultCode != RESULT_OK) {
+        if (requestCode != LoginActivity.RESULT) {
+            return;
+        }
+        if (resultCode != RESULT_OK) {
             destroy();
             pipe.cancelled();
         } else {
@@ -90,8 +93,7 @@ public class SessionFragment extends Fragment {
             String refresh = data.getStringExtra(LoginActivity.TOKEN_REFRESH);
             io.execute(() -> {
                 try {
-                    files.delete(STORE);
-                    files.write(STORE, out -> {
+                    files.write(STORE, Files.OVERWRITE, out -> {
                         try (ObjectOutputStream file = new ObjectOutputStream(out)) {
                             file.writeUTF(auth);
                             file.writeUTF(refresh);
@@ -102,7 +104,7 @@ public class SessionFragment extends Fragment {
                     destroy();
                 }
             });
-            pipe.send(new Auth.Tokens(auth, refresh));
+            pipe.loggedIn(new Auth.Tokens(auth, refresh));
         }
     }
 

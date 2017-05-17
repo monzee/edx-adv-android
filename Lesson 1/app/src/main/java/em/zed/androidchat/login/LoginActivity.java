@@ -11,7 +11,6 @@ import android.support.annotation.StringRes;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -38,9 +37,9 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
     public static final String TOKEN_AUTH = "key-auth-token";
     public static final String TOKEN_REFRESH = "key-refresh-token";
 
-    private static class Retained {
+    private static class Scope {
         final ExecutorService bg = GLOBALS.io();
-        final Login.Controller will = new LoginController(bg, GLOBALS.auth(), GLOBALS.logger());
+        final Login.Controller actions = new LoginController(bg, GLOBALS.auth(), GLOBALS.logger());
         Login.Model state = Login.Model.Case::idle;
     }
 
@@ -51,14 +50,14 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
     @Bind(R.id.progressBar) ProgressBar progressBar;
     @Bind(R.id.layoutMainContainer) RelativeLayout container;
 
-    private Retained scope;
+    private Scope my;
     private Future<?> pending;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
-        scope = (Retained) getLastCustomNonConfigurationInstance();
-        if (scope == null) {
-            scope = new Retained();
+        my = (Scope) getLastCustomNonConfigurationInstance();
+        if (my == null) {
+            my = new Scope();
         }
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
@@ -68,7 +67,7 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
     @Override
     protected void onResume() {
         super.onResume();
-        scope.state.match(this);
+        my.state.match(this);
     }
 
     @Override
@@ -82,7 +81,7 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
 
     @Override
     public Object onRetainCustomNonConfigurationInstance() {
-        return scope;
+        return my;
     }
 
     @Override
@@ -108,11 +107,11 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
     @Override
     public void loggingIn(Future<Login.Model> result) {
         spin(true);
-        pending = scope.bg.submit(() -> {
+        pending = my.bg.submit(() -> {
             try {
-                render(result.get());
+                apply(result.get());
             } catch (ExecutionException e) {
-                render(of -> of.error(e.getCause()));
+                apply(of -> of.error(e));
             } catch (InterruptedException ignored) {
             }
         });
@@ -121,7 +120,6 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
     @Override
     public void loggedIn(Auth.Tokens tokens) {
         spin(false);
-        Log.d("mz", "#loggedIn");
         setResult(RESULT_OK, new Intent()
                 .putExtra(TOKEN_AUTH, tokens.auth)
                 .putExtra(TOKEN_REFRESH, tokens.refresh));
@@ -131,17 +129,17 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
     @Override
     public void loginFailed(Login.Reason reason) {
         say(R.string.login_error_message_signin, reason);
-        render(Login.Model.Case::idle);
+        apply(Login.Model.Case::idle);
     }
 
     @Override
     public void signingUp(Future<Login.Model> result) {
         spin(true);
-        pending = scope.bg.submit(() -> {
+        pending = my.bg.submit(() -> {
             try {
-                render(result.get());
+                apply(result.get());
             } catch (ExecutionException e) {
-                render(of -> of.error(e.getCause()));
+                apply(of -> of.error(e));
             } catch (InterruptedException ignored) {
             }
         });
@@ -150,18 +148,18 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
     @Override
     public void signedUp(Login.Model loggingIn) {
         say(R.string.login_notice_message_useradded);
-        render(loggingIn);
+        apply(loggingIn);
     }
 
     @Override
     public void signUpFailed(EnumSet<Login.Invalid> rejected) {
         if (rejected.isEmpty()) {
             say("Email already taken. Did you forget your password?");
-            render(Login.Model.Case::idle);
+            apply(Login.Model.Case::idle);
         } else {
             say(R.string.login_error_message_signup, "; some field was rejected by the service.");
             rejected.add(Login.Invalid.REJECTED);
-            render(of -> of.invalid(rejected));
+            apply(of -> of.invalid(rejected));
         }
     }
 
@@ -169,7 +167,7 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
     public void error(Throwable e) {
         if (e instanceof TimeoutException) {
             say("Request has taken too long. Try again later.");
-            render(Login.Model.Case::idle);
+            apply(Login.Model.Case::idle);
             return;
         }
         throw new RuntimeException(e);
@@ -179,19 +177,19 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
     void signIn() {
         String email = inputEmail.getText().toString();
         String password = inputPassword.getText().toString();
-        render(scope.will.login(email, password));
+        apply(my.actions.login(email, password));
     }
 
     @OnClick(R.id.btnSignup)
     void signUp() {
         String email = inputEmail.getText().toString();
         String password = inputPassword.getText().toString();
-        render(scope.will.signUp(email, password));
+        apply(my.actions.signUp(email, password));
     }
 
-    void render(Login.Model newState) {
+    void apply(Login.Model newState) {
         runOnUiThread(() -> {
-            scope.state = newState;
+            my.state = newState;
             newState.match(this);
         });
     }

@@ -6,11 +6,12 @@ package em.zed.androidchat;
 
 import android.util.Log;
 
-import em.zed.androidchat.LogLevel;
-import em.zed.androidchat.Logger;
+import edu.galileo.android.androidchat.BuildConfig;
 
 public class AndroidLog implements Logger {
+
     private final String tag;
+    private final boolean isDebug = BuildConfig.BUILD_TYPE.equals("debug");
 
     public AndroidLog(String tag) {
         this.tag = tag;
@@ -18,7 +19,7 @@ public class AndroidLog implements Logger {
 
     @Override
     public boolean active(LogLevel level) {
-        return true;
+        return isDebug;
     }
 
     @Override

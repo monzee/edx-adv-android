@@ -16,6 +16,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -38,10 +39,9 @@ import em.zed.androidchat.concerns.SessionFragment;
 
 import static edu.galileo.android.androidchat.AndroidChatApplication.GLOBALS;
 
-public class MainActivity extends AppCompatActivity
-        implements UserRepository.OnUserUpdate, Main.Model.Case {
+public class MainActivity extends AppCompatActivity implements Main.Model.Case {
 
-    private static class Retained {
+    private static class Scope {
         final ExecutorService io = GLOBALS.io();
         final ExecutorService junction = Executors.newSingleThreadExecutor(runnable -> {
             Thread t = new Thread(runnable);
@@ -56,12 +56,12 @@ public class MainActivity extends AppCompatActivity
                 .withExecutorService(io)
                 .withLogger(log);
 
-        Main.SourcePort will = ctrlBuilder.build(Auth.NO_SESSION);
+        Main.SourcePort actions = ctrlBuilder.build(Auth.NO_SESSION);
         Main.Model state = Main.Model.Case::booting;
         String subtitle;
 
         void login(Auth.Tokens t) {
-            will = ctrlBuilder.build(GLOBALS.auth().start(t));
+            actions = ctrlBuilder.build(GLOBALS.auth().start(t));
         }
     }
 
@@ -69,33 +69,33 @@ public class MainActivity extends AppCompatActivity
     @Bind(R.id.recyclerViewContacts) RecyclerView recyclerView;
 
     private final Deque<Future<?>> inProgress = new ArrayDeque<>();
-    private Retained scope;
+    private Scope my;
     private ContactsAdapter adapter;
     private UserRepository.Canceller watch;
     private SessionFragment session;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
-        scope = (Retained) getLastCustomNonConfigurationInstance();
-        if (scope == null) {
-            scope = new Retained();
+        my = (Scope) getLastCustomNonConfigurationInstance();
+        if (my == null) {
+            my = new Scope();
         }
         super.onCreate(savedInstanceState);
         SessionFragment.attach(getSupportFragmentManager());
         setContentView(R.layout.activity_contact_list);
         ButterKnife.bind(this);
         toolbar.setTitle(R.string.contactlist_title);
-        toolbar.setSubtitle(scope.subtitle);
+        toolbar.setSubtitle(my.subtitle);
         setSupportActionBar(toolbar);
-        adapter = new ContactsAdapter(new ContactsAdapter.Hook() {
+        adapter = new ContactsAdapter(new ContactsAdapter.Pipe() {
             @Override
             public void click(User user) {
-                render(of -> of.willChatWith(user));
+                apply(of -> of.willChatWith(user));
             }
 
             @Override
             public void longClick(User user) {
-                render(scope.will.removeContact(user.getEmail()));
+                apply(my.actions.removeContact(user.getEmail()));
             }
         });
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -107,14 +107,12 @@ public class MainActivity extends AppCompatActivity
     public void onAttachFragment(Fragment fragment) {
         if (fragment instanceof SessionFragment) {
             session = ((SessionFragment) fragment).inject(
-                    scope.io,
-                    scope.files,
-                    scope.log,
+                    my.io, my.files, my.log,
                     new SessionFragment.Pipe() {
                         @Override
-                        public void send(Auth.Tokens tokens) {
-                            scope.login(tokens);
-                            render(scope.will.loadContacts());
+                        public void loggedIn(Auth.Tokens tokens) {
+                            my.login(tokens);
+                            apply(my.actions.loadContacts());
                         }
 
                         @Override
@@ -128,7 +126,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
-        scope.state.match(this);
+        my.state.match(this);
     }
 
     @Override
@@ -141,12 +139,12 @@ public class MainActivity extends AppCompatActivity
         for (Future<?> future : inProgress) {
            future.cancel(true);
         }
-        jump(of -> of.replay(scope.backlog));
+        move(of -> of.replay(my.backlog));
     }
 
     @Override
     public Object onRetainCustomNonConfigurationInstance() {
-        return scope;
+        return my;
     }
 
     @Override
@@ -158,15 +156,10 @@ public class MainActivity extends AppCompatActivity
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.action_logout) {
-            render(scope.will.logout());
+            apply(my.actions.logout());
             return true;
         }
         return super.onOptionsItemSelected(item);
-    }
-
-    @Override
-    public void updated(User contact) {
-        render(adapter.update(contact));
     }
 
     @Override
@@ -180,7 +173,7 @@ public class MainActivity extends AppCompatActivity
         while (!backlog.isEmpty()) {
             backlog.pop().match(this);
         }
-        render(last);
+        apply(last);
     }
 
     @Override
@@ -191,15 +184,15 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void loaded(String userEmail, List<User> contacts) {
         toolbar.setSubtitle(userEmail);
-        scope.subtitle = userEmail;
-        render(of -> of.idle(contacts));
+        my.subtitle = userEmail;
+        apply(of -> of.idle(contacts));
     }
 
     @Override
     public void idle(List<User> contacts) {
         adapter.replace(contacts);
         if (watch == null) {
-            watch = scope.will.observe(contacts, this);
+            watch = my.actions.observe(contacts, c -> apply(adapter.update(c)));
         }
     }
 
@@ -211,7 +204,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void removed(User contact) {
         unwatch();
-        render(adapter.remove(contact));
+        apply(adapter.remove(contact));
     }
 
     @Override
@@ -222,7 +215,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void added(User contact) {
         unwatch();
-        render(adapter.add(contact));
+        apply(adapter.add(contact));
     }
 
     @Override
@@ -233,22 +226,23 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void loggedOut() {
         unwatch();
+        adapter.replace(Collections.emptyList());
         session.destroy();
         session.start(true);
-        jump(Main.Model.Case::booting);
+        move(Main.Model.Case::booting);
     }
 
     @Override
     public void willChatWith(User contact) {
-        jump(adapter.sync());
+        move(adapter.sync());
         // launch chat
     }
 
     @Override
     public void error(Throwable e) {
-        if (e instanceof Auth.AuthError) {
-            LogLevel.I.to(scope.log, e);
-            render(Main.Model.Case::loggedOut);
+        if (e.getCause() instanceof Auth.AuthError) {
+            LogLevel.I.to(my.log, e);
+            apply(Main.Model.Case::loggedOut);
             return;
         }
         throw new RuntimeException(e);
@@ -260,34 +254,34 @@ public class MainActivity extends AppCompatActivity
         // call controller.addContact
     }
 
-    void jump(Main.Model newState) {
-        scope.state = newState;
-        LogLevel.D.to(scope.log, StateRepr.stringify(newState));
+    void move(Main.Model newState) {
+        my.state = newState;
+        LogLevel.D.to(my.log, "--> %s", StateRepr.stringify(newState));
     }
 
-    void render(Main.Model newState) {
+    void apply(Main.Model newState) {
         runOnUiThread(() -> {
-            jump(newState);
+            move(newState);
             newState.match(this);
         });
     }
 
     void join(Future<Main.Model> result) {
-        Main.Model snapshot = scope.state;
+        Main.Model snapshot = my.state;
         AtomicReference<Future<?>> join = new AtomicReference<>();
-        join.set(scope.junction.submit(() -> {
+        join.set(my.junction.submit(() -> {
             try {
-                render(result.get());
+                apply(result.get());
             } catch (ExecutionException e) {
-                render(of -> of.error(e.getCause()));
+                apply(of -> of.error(e));
             } catch (InterruptedException e) {
-                scope.backlog.push(snapshot);
+                my.backlog.push(snapshot);
             } finally {
                 inProgress.remove(join.get());
             }
         }));
         inProgress.push(join.get());
-        jump(adapter.sync());
+        move(adapter.sync());
     }
 
     void unwatch() {

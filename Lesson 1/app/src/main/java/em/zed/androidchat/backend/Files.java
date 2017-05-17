@@ -12,8 +12,11 @@ import java.io.IOException;
 
 public interface Files {
 
+    boolean OVERWRITE = true;
+    boolean APPEND = false;
+
     interface Read {
-        void accept(FileInputStream fileInStream, boolean justCreated) throws IOException;
+        void accept(FileInputStream fileInStream, boolean isNew) throws IOException;
     }
 
     interface Write {
@@ -44,8 +47,12 @@ public interface Files {
         }
 
         public void write(String filename, Write block) throws IOException {
+            write(filename, APPEND, block);
+        }
+
+        public void write(String filename, boolean overwrite, Write block) throws IOException {
             File f = get(filename);
-            try (FileOutputStream fileOutStream = new FileOutputStream(f)) {
+            try (FileOutputStream fileOutStream = new FileOutputStream(f, !overwrite)) {
                 block.accept(fileOutStream);
             }
         }

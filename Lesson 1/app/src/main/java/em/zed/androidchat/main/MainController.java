@@ -84,14 +84,12 @@ public class MainController implements Main.SourcePort {
                 case LOGGED_IN:
                     User user = session.minimalProfile();
                     userEmail = user.getEmail();
-                    LogLevel.D.to(my.log, "userEmail: %s", userEmail);
                     my.contacts.fillContacts(user);
                     List<User> userContacts = new ArrayList<>();
                     Map<String, Boolean> data = user.getContacts();
                     for (String email : data.keySet()) {
                         userContacts.add(new User(email, data.get(email), null));
                     }
-                    LogLevel.D.to(my.log, "%d contacts", userContacts.size());
                     return of -> of.loaded(userEmail, userContacts);
                 case EXPIRED:
                     LogLevel.D.to(my.log, "EXPIRED");
@@ -112,7 +110,6 @@ public class MainController implements Main.SourcePort {
             switch (session.check()) {
                 case LOGGED_IN:
                     boolean online = my.contacts.addContact(userEmail, email);
-                    LogLevel.D.to(my.log, "added");
                     return of -> of.added(new User(email, online, null));
                 case EXPIRED:
                     LogLevel.D.to(my.log, "EXPIRED");
@@ -133,7 +130,6 @@ public class MainController implements Main.SourcePort {
             switch (session.check()) {
                 case LOGGED_IN:
                     boolean online = my.contacts.removeContact(userEmail, email);
-                    LogLevel.D.to(my.log, "removed");
                     return of -> of.removed(new User(email, online, null));
                 case EXPIRED:
                     LogLevel.D.to(my.log, "EXPIRED");
@@ -152,7 +148,6 @@ public class MainController implements Main.SourcePort {
         LogLevel.I.to(my.log, "#logout");
         Future<Main.Model> f = my.bg.<Main.Model>submit(() -> {
             session.logout();
-            LogLevel.D.to(my.log, "ok");
             return Main.Model.Case::loggedOut;
         });
         return of -> of.loggingOut(f);

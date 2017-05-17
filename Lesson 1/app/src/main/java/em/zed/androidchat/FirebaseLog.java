@@ -8,9 +8,12 @@ import android.util.Log;
 
 import com.google.firebase.crash.FirebaseCrash;
 
+import edu.galileo.android.androidchat.BuildConfig;
+
 public class FirebaseLog implements Logger {
 
     private final String tag;
+    private final boolean isDebug = BuildConfig.BUILD_TYPE.equals("debug");
 
     public FirebaseLog(String tag) {
         this.tag = tag;
@@ -23,18 +26,22 @@ public class FirebaseLog implements Logger {
 
     @Override
     public void log(LogLevel level, String message) {
-        int l = Log.INFO;
-        switch (level) {
-            case D:
-                l = Log.DEBUG;
-                break;
-            case I:
-                break;
-            case E:
-                l = Log.ERROR;
-                break;
+        if (!isDebug) {
+            FirebaseCrash.log(message);
+        } else {
+            int l = Log.INFO;
+            switch (level) {
+                case D:
+                    l = Log.DEBUG;
+                    break;
+                case I:
+                    break;
+                case E:
+                    l = Log.ERROR;
+                    break;
+            }
+            FirebaseCrash.logcat(l, tag, message);
         }
-        FirebaseCrash.logcat(l, tag, message);
     }
 
     @Override
