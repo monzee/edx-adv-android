@@ -12,6 +12,7 @@ import java.util.concurrent.Executors;
 import em.zed.androidchat.backend.Auth;
 import em.zed.androidchat.backend.Contacts;
 import em.zed.androidchat.backend.Files;
+import em.zed.androidchat.backend.Image;
 import em.zed.androidchat.backend.UserRepository;
 import em.zed.androidchat.backend.fake.FakeAuth;
 import em.zed.androidchat.backend.fake.FakeUserRepository;
@@ -24,6 +25,11 @@ public interface Globals {
     Files.Service dataFiles();
     UserRepository users();
     Contacts.Service contacts();
+    /**
+     * This is generic because I don't want platform types (especially
+     * views) in this interface.
+     */
+    <T> Image.Service<T> images();
     Logger logger();
 
     Executor IMMEDIATE = Runnable::run;
@@ -62,6 +68,11 @@ public interface Globals {
 
         @Override
         public Contacts.Service contacts() {
+            return null;
+        }
+
+        @Override
+        public <T> Image.Service<T> images() {
             return null;
         }
 

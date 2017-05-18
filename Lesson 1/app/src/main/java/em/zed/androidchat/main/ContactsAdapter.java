@@ -10,6 +10,7 @@ import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.util.Collections;
@@ -22,6 +23,7 @@ import butterknife.ButterKnife;
 import de.hdodenhof.circleimageview.CircleImageView;
 import edu.galileo.android.androidchat.R;
 import edu.galileo.android.androidchat.contactlist.entities.User;
+import em.zed.androidchat.backend.Image;
 
 public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.Contact>
         implements Main.DisplayPort {
@@ -52,6 +54,7 @@ public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.Contac
         void bind(User row) {
             user = row;
             contact.setText(row.getEmail());
+            avatars.load(user.getEmail()).into(avatar);
             if (row.isOnline()) {
                 status.setText("online");
                 status.setTextColor(Color.GREEN);
@@ -62,11 +65,13 @@ public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.Contac
         }
     }
 
+    private final Image.Service<ImageView> avatars;
     private final Pipe pipe;
     private List<User> items = Collections.emptyList();
     private Map<String, Integer> byEmail = Collections.emptyMap();
 
-    public ContactsAdapter(Pipe pipe) {
+    public ContactsAdapter(Image.Service<ImageView> avatars, Pipe pipe) {
+        this.avatars = avatars;
         this.pipe = pipe;
     }
 

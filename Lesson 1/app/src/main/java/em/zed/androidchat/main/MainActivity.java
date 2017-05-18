@@ -14,6 +14,7 @@ import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.ImageView;
 
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -33,6 +34,7 @@ import edu.galileo.android.androidchat.contactlist.entities.User;
 import em.zed.androidchat.LogLevel;
 import em.zed.androidchat.Logger;
 import em.zed.androidchat.backend.Auth;
+import em.zed.androidchat.backend.Image;
 import em.zed.androidchat.backend.Files;
 import em.zed.androidchat.backend.UserRepository;
 import em.zed.androidchat.concerns.SessionFragment;
@@ -50,6 +52,7 @@ public class MainActivity extends AppCompatActivity implements Main.Model.Case {
         });
         final Logger log = GLOBALS.logger();
         final Files.Service files = GLOBALS.dataFiles();
+        final Image.Service<ImageView> gravatars = GLOBALS.images();
         final Deque<Main.Model> backlog = new ArrayDeque<>();
         final MainController.Builder ctrlBuilder = new MainController
                 .Builder(GLOBALS.users(), GLOBALS.contacts())
@@ -87,7 +90,7 @@ public class MainActivity extends AppCompatActivity implements Main.Model.Case {
         toolbar.setTitle(R.string.contactlist_title);
         toolbar.setSubtitle(my.subtitle);
         setSupportActionBar(toolbar);
-        adapter = new ContactsAdapter(new ContactsAdapter.Pipe() {
+        adapter = new ContactsAdapter(my.gravatars, new ContactsAdapter.Pipe() {
             @Override
             public void click(User user) {
                 apply(of -> of.willChatWith(user));

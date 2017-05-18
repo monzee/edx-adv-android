@@ -3,6 +3,8 @@ package edu.galileo.android.androidchat;
 import android.app.Application;
 import android.os.AsyncTask;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.RequestManager;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
@@ -16,6 +18,7 @@ import em.zed.androidchat.Globals;
 import em.zed.androidchat.Lazy;
 import em.zed.androidchat.Logger;
 import em.zed.androidchat.backend.Auth;
+import em.zed.androidchat.backend.Image;
 import em.zed.androidchat.backend.Contacts;
 import em.zed.androidchat.backend.Files;
 import em.zed.androidchat.backend.UserRepository;
@@ -23,6 +26,7 @@ import em.zed.androidchat.backend.firebase.FirebaseContacts;
 import em.zed.androidchat.backend.firebase.FirebaseEmailAuth;
 import em.zed.androidchat.backend.firebase.FirebaseUserRepository;
 import em.zed.androidchat.backend.firebase.Schema;
+import em.zed.androidchat.backend.glide.GravatarImages;
 
 
 public class AndroidChatApplication extends Application implements Globals {
@@ -59,12 +63,19 @@ public class AndroidChatApplication extends Application implements Globals {
         }
 
         @Override
+        public <T> Image.Service<T> images() {
+            return delegate.images();
+        }
+
+        @Override
         public Logger logger() {
             return delegate.logger();
         }
     };
 
     private static Globals delegate = Globals.DEFAULT;
+
+    private final Lazy<RequestManager> glide = new Lazy<>(() -> Glide.with(this));
 
     private final Lazy<FirebaseDatabase> fbRoot = new Lazy<>(() -> {
         FirebaseDatabase db = FirebaseDatabase.getInstance();
@@ -127,6 +138,12 @@ public class AndroidChatApplication extends Application implements Globals {
     @Override
     public Contacts.Service contacts() {
         return contacts.get();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T> Image.Service<T> images() {
+        return (Image.Service<T>) new GravatarImages(glide.get());
     }
 
     @Override
