@@ -6,6 +6,7 @@ package em.zed.androidchat.concerns;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
+import android.support.annotation.WorkerThread;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 
@@ -25,6 +26,7 @@ import static android.app.Activity.RESULT_OK;
 public class SessionFragment extends Fragment {
 
     public interface Pipe {
+        @WorkerThread
         void loggedIn(Auth.Tokens tokens);
         void cancelled();
     }
@@ -60,22 +62,25 @@ public class SessionFragment extends Fragment {
     @SuppressLint("NewApi")
     public void start(boolean forced) {
         LogLevel.I.to(log, "#start(%s)", forced);
-        try {
-            files.read(STORE, (in, isNew) -> {
-                if (forced || isNew) {
-                    startActivityForResult(
-                            new Intent(getActivity(), LoginActivity.class),
-                            LoginActivity.RESULT);
-                } else try (ObjectInputStream file = new ObjectInputStream(in)) {
-                    String auth = file.readUTF();
-                    String refresh = file.readUTF();
-                    pipe.loggedIn(new Auth.Tokens(auth, refresh));
-                }
-            });
-        } catch (IOException e) {
-            LogLevel.E.to(log, e, "io error!");
-            destroy();
-        }
+        io.execute(() -> {
+            try {
+                files.read(STORE, (in, isNew) -> {
+                    if (forced || isNew) {
+                        // TODO: is it ok to call this in a non-main thread?
+                        startActivityForResult(
+                                new Intent(getActivity(), LoginActivity.class),
+                                LoginActivity.RESULT);
+                    } else try (ObjectInputStream file = new ObjectInputStream(in)) {
+                        String auth = file.readUTF();
+                        String refresh = file.readUTF();
+                        pipe.loggedIn(new Auth.Tokens(auth, refresh));
+                    }
+                });
+            } catch (IOException e) {
+                LogLevel.E.to(log, e, "io error!");
+                destroy();
+            }
+        });
     }
 
     @SuppressLint("NewApi")

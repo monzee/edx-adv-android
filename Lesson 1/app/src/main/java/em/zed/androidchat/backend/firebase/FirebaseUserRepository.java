@@ -76,15 +76,16 @@ public class FirebaseUserRepository implements UserRepository {
     @Override
     public Canceller onUpdate(Executor ex, String email, OnUserUpdate listener) {
         ValueEventListener profileChange = new ValueEventListener() {
-            boolean initial = true;
+            boolean first = true;
 
             @Override
             public void onDataChange(DataSnapshot node) {
-                if (initial) {
-                    initial = false;
+                if (first) {
+                    first = false;
                     return;
                 }
-                ex.execute(() -> listener.updated(node.getValue(User.class)));
+                User u = node.getValue(User.class);
+                ex.execute(() -> listener.updated(u));
             }
 
             @Override

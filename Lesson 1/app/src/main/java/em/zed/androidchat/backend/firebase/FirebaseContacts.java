@@ -29,11 +29,9 @@ public class FirebaseContacts implements Contacts.Service {
         User fetched = getUser(user.getEmail());
         Map<String, Boolean> fixed = new HashMap<>();
         Map<String, Boolean> contacts = fetched.getContacts();
-        if (contacts != null) {
-            for (String key : contacts.keySet()) {
-                // TODO: consider adding an EmailKey -> email map in the db
-                fixed.put(Schema.illegalize(key), contacts.get(key));
-            }
+        if (contacts != null) for (String key : contacts.keySet()) {
+            // TODO: consider adding an EmailKey -> email map in the db
+            fixed.put(Schema.illegalize(key), contacts.get(key));
         }
         user.setContacts(fixed);
     }
@@ -52,6 +50,7 @@ public class FirebaseContacts implements Contacts.Service {
     public boolean removeContact(String source, String target) throws InterruptedException {
         String left = Schema.legalize(source);
         String right = Schema.legalize(target);
+        // TODO: is there a way to do these in one call?
         usersNode.child(left).child(Schema.CONTACTS).child(right).removeValue();
         usersNode.child(right).child(Schema.CONTACTS).child(left).removeValue();
         return getUser(target).isOnline();
@@ -94,4 +93,5 @@ public class FirebaseContacts implements Contacts.Service {
                 });
         return result.await();
     }
+
 }

@@ -14,31 +14,31 @@ import em.zed.androidchat.backend.UserRepository;
 public interface Main {
 
     interface Model {
-        void match(Case of);
-
-        interface Case {
-            void booting();
-            void replay(Deque<Model> backlog);
-
-            void loading(Future<Model> task);
-            void loaded(String userEmail, List<User> contacts);
-            void idle(List<User> contacts);
-
-            void removing(Future<Model> task);
-            void removed(User contact);
-
-            void adding(Future<Model> task);
-            void added(User contact);
-
-            void loggingOut(Future<Model> task);
-            void loggedOut();
-
-            void willChatWith(User contact);
-            void error(Throwable e);
-        }
+        void render(View v);
     }
 
-    interface Machine {
+    interface View {
+        void booting();
+        void replay(Deque<Model> backlog);
+
+        void loading(Future<Model> task);
+        void loaded(String userEmail, List<User> contacts);
+        void idle(List<User> contacts);
+
+        void removing(Future<Model> task);
+        void removed(User contact);
+
+        void adding(Future<Model> task);
+        void added(User contact);
+
+        void loggingOut(Future<Model> task);
+        void loggedOut();
+
+        void willChatWith(User contact);
+        void error(Throwable e);
+    }
+
+    interface Renderer {
         void move(Model newState);
         void apply(Model newState);
     }
@@ -51,12 +51,12 @@ public interface Main {
         Model logout();
     }
 
-    interface DisplayPort {
+    interface TargetPort {
         void replace(List<User> contacts);
         Model add(User contact);
         Model remove(User contact);
         Model update(User contact);
-        Model sync();
+        Model pull();
     }
 
 }

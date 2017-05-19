@@ -161,6 +161,7 @@ public class FirebaseEmailAuth implements Auth.Service {
         };
     }
 
+    // TODO: obfuscate this
     private static String tokenize(String left, String right) {
         return left + '\0' + right;
     }

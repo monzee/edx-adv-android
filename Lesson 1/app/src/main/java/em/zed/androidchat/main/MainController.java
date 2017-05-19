@@ -68,7 +68,7 @@ public class MainController implements Main.SourcePort {
             if (freshContacts != null) for (User c : userContacts) {
                 boolean online = my.contacts.isOnline(c.getEmail(), freshContacts);
                 if (c.isOnline() != online) {
-                    LogLevel.D.to(my.log, "updated %s: %s", c.getEmail(), online);
+                    LogLevel.D.to(my.log, "updated %s->%s", c.getEmail(), online);
                     c.setOnline(online);
                     listener.updated(c);
                 }
@@ -90,17 +90,17 @@ public class MainController implements Main.SourcePort {
                     for (String email : data.keySet()) {
                         userContacts.add(new User(email, data.get(email), null));
                     }
-                    return of -> of.loaded(userEmail, userContacts);
+                    return v -> v.loaded(userEmail, userContacts);
                 case EXPIRED:
                     LogLevel.D.to(my.log, "EXPIRED");
-                    return session.refresh() ? loadContacts() : Main.Model.Case::loggedOut;
+                    return session.refresh() ? loadContacts() : Main.View::loggedOut;
                 case GUEST:
                     LogLevel.D.to(my.log, "GUEST");
                 default:
-                    return Main.Model.Case::loggedOut;
+                    return Main.View::loggedOut;
             }
         });
-        return of -> of.loading(f);
+        return v -> v.loading(f);
     }
 
     @Override
@@ -110,17 +110,17 @@ public class MainController implements Main.SourcePort {
             switch (session.check()) {
                 case LOGGED_IN:
                     boolean online = my.contacts.addContact(userEmail, email);
-                    return of -> of.added(new User(email, online, null));
+                    return v -> v.added(new User(email, online, null));
                 case EXPIRED:
                     LogLevel.D.to(my.log, "EXPIRED");
-                    return session.refresh() ? addContact(email) : Main.Model.Case::loggedOut;
+                    return session.refresh() ? addContact(email) : Main.View::loggedOut;
                 case GUEST:
                     LogLevel.D.to(my.log, "GUEST");
                 default:
-                    return Main.Model.Case::loggedOut;
+                    return Main.View::loggedOut;
             }
         });
-        return of -> of.adding(f);
+        return v -> v.adding(f);
     }
 
     @Override
@@ -130,17 +130,17 @@ public class MainController implements Main.SourcePort {
             switch (session.check()) {
                 case LOGGED_IN:
                     boolean online = my.contacts.removeContact(userEmail, email);
-                    return of -> of.removed(new User(email, online, null));
+                    return v -> v.removed(new User(email, online, null));
                 case EXPIRED:
                     LogLevel.D.to(my.log, "EXPIRED");
-                    return session.refresh() ? removeContact(email) : Main.Model.Case::loggedOut;
+                    return session.refresh() ? removeContact(email) : Main.View::loggedOut;
                 case GUEST:
                     LogLevel.D.to(my.log, "GUEST");
                 default:
-                    return Main.Model.Case::loggedOut;
+                    return Main.View::loggedOut;
             }
         });
-        return of -> of.removing(f);
+        return v -> v.removing(f);
     }
 
     @Override
@@ -148,9 +148,9 @@ public class MainController implements Main.SourcePort {
         LogLevel.I.to(my.log, "#logout");
         Future<Main.Model> f = my.bg.<Main.Model>submit(() -> {
             session.logout();
-            return Main.Model.Case::loggedOut;
+            return Main.View::loggedOut;
         });
-        return of -> of.loggingOut(f);
+        return v -> v.loggingOut(f);
     }
 
 }

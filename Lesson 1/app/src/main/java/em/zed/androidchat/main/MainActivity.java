@@ -33,15 +33,16 @@ import edu.galileo.android.androidchat.R;
 import edu.galileo.android.androidchat.contactlist.entities.User;
 import em.zed.androidchat.LogLevel;
 import em.zed.androidchat.Logger;
+import em.zed.androidchat.Pending;
 import em.zed.androidchat.backend.Auth;
-import em.zed.androidchat.backend.Image;
 import em.zed.androidchat.backend.Files;
+import em.zed.androidchat.backend.Image;
 import em.zed.androidchat.backend.UserRepository;
 import em.zed.androidchat.concerns.SessionFragment;
 
 import static edu.galileo.android.androidchat.AndroidChatApplication.GLOBALS;
 
-public class MainActivity extends AppCompatActivity implements Main.Model.Case {
+public class MainActivity extends AppCompatActivity implements Main.View, Main.Renderer {
 
     private static class Scope {
         final ExecutorService io = GLOBALS.io();
@@ -60,7 +61,7 @@ public class MainActivity extends AppCompatActivity implements Main.Model.Case {
                 .withLogger(log);
 
         Main.SourcePort actions = ctrlBuilder.build(Auth.NO_SESSION);
-        Main.Model state = Main.Model.Case::booting;
+        Main.Model state = Main.View::booting;
         String subtitle;
 
         void login(Auth.Tokens t) {
@@ -71,7 +72,7 @@ public class MainActivity extends AppCompatActivity implements Main.Model.Case {
     @Bind(R.id.toolbar) Toolbar toolbar;
     @Bind(R.id.recyclerViewContacts) RecyclerView recyclerView;
 
-    private final Deque<Future<?>> inProgress = new ArrayDeque<>();
+    private final Deque<Pending<Main.Model>> inProgress = new ArrayDeque<>();
     private Scope my;
     private ContactsAdapter adapter;
     private UserRepository.Canceller watch;
@@ -93,7 +94,7 @@ public class MainActivity extends AppCompatActivity implements Main.Model.Case {
         adapter = new ContactsAdapter(my.gravatars, new ContactsAdapter.Pipe() {
             @Override
             public void click(User user) {
-                apply(of -> of.willChatWith(user));
+                apply(v -> v.willChatWith(user));
             }
 
             @Override
@@ -120,6 +121,7 @@ public class MainActivity extends AppCompatActivity implements Main.Model.Case {
 
                         @Override
                         public void cancelled() {
+                            LogLevel.D.to(my.log, "bye.");
                             finish();
                         }
                     });
@@ -129,7 +131,7 @@ public class MainActivity extends AppCompatActivity implements Main.Model.Case {
     @Override
     protected void onResume() {
         super.onResume();
-        my.state.match(this);
+        my.state.render(this);
     }
 
     @Override
@@ -139,10 +141,10 @@ public class MainActivity extends AppCompatActivity implements Main.Model.Case {
         if (inProgress.isEmpty()) {
             return;
         }
-        for (Future<?> future : inProgress) {
-           future.cancel(true);
+        for (Pending<Main.Model> task : inProgress) {
+            my.backlog.push(task.cancel());
         }
-        move(of -> of.replay(my.backlog));
+        move(v -> v.replay(my.backlog));
     }
 
     @Override
@@ -172,15 +174,16 @@ public class MainActivity extends AppCompatActivity implements Main.Model.Case {
 
     @Override
     public void replay(Deque<Main.Model> backlog) {
-        Main.Model last = backlog.removeLast();
+        Main.Model last = backlog.peekLast();
         while (!backlog.isEmpty()) {
-            backlog.pop().match(this);
+            backlog.pop().render(this);
         }
-        apply(last);
+        move(last);
     }
 
     @Override
     public void loading(Future<Main.Model> task) {
+        adapter.replace(Collections.emptyList());
         join(task);
     }
 
@@ -188,15 +191,14 @@ public class MainActivity extends AppCompatActivity implements Main.Model.Case {
     public void loaded(String userEmail, List<User> contacts) {
         toolbar.setSubtitle(userEmail);
         my.subtitle = userEmail;
-        apply(of -> of.idle(contacts));
+        unwatch();
+        apply(v -> v.idle(contacts));
     }
 
     @Override
     public void idle(List<User> contacts) {
         adapter.replace(contacts);
-        if (watch == null) {
-            watch = my.actions.observe(contacts, c -> apply(adapter.update(c)));
-        }
+        watch(contacts);
     }
 
     @Override
@@ -229,15 +231,14 @@ public class MainActivity extends AppCompatActivity implements Main.Model.Case {
     @Override
     public void loggedOut() {
         unwatch();
-        adapter.replace(Collections.emptyList());
         session.destroy();
         session.start(true);
-        move(Main.Model.Case::booting);
+        move(Main.View::booting);
     }
 
     @Override
     public void willChatWith(User contact) {
-        move(adapter.sync());
+        move(adapter.pull());
         // launch chat
     }
 
@@ -245,10 +246,24 @@ public class MainActivity extends AppCompatActivity implements Main.Model.Case {
     public void error(Throwable e) {
         if (e.getCause() instanceof Auth.AuthError) {
             LogLevel.I.to(my.log, e);
-            apply(Main.Model.Case::loggedOut);
+            apply(Main.View::loggedOut);
             return;
         }
         throw new RuntimeException(e);
+    }
+
+    @Override
+    public void move(Main.Model newState) {
+        my.state = newState;
+        LogLevel.D.to(my.log, "--> %s", StateRepr.stringify(newState));
+    }
+
+    @Override
+    public void apply(Main.Model newState) {
+        runOnUiThread(() -> {
+            move(newState);
+            newState.render(this);
+        });
     }
 
     @OnClick(R.id.fab)
@@ -257,34 +272,26 @@ public class MainActivity extends AppCompatActivity implements Main.Model.Case {
         // call controller.addContact
     }
 
-    void move(Main.Model newState) {
-        my.state = newState;
-        LogLevel.D.to(my.log, "--> %s", StateRepr.stringify(newState));
-    }
-
-    void apply(Main.Model newState) {
-        runOnUiThread(() -> {
-            move(newState);
-            newState.match(this);
-        });
-    }
-
     void join(Future<Main.Model> result) {
-        Main.Model snapshot = my.state;
-        AtomicReference<Future<?>> join = new AtomicReference<>();
-        join.set(my.junction.submit(() -> {
+        AtomicReference<Pending<Main.Model>> pending = new AtomicReference<>();
+        pending.set(new Pending<>(my.state, my.junction.submit(() -> {
             try {
                 apply(result.get());
             } catch (ExecutionException e) {
-                apply(of -> of.error(e));
-            } catch (InterruptedException e) {
-                my.backlog.push(snapshot);
+                apply(v -> v.error(e));
+            } catch (InterruptedException ignored) {
             } finally {
-                inProgress.remove(join.get());
+                inProgress.remove(pending.get());
             }
-        }));
-        inProgress.push(join.get());
-        move(adapter.sync());
+        })));
+        inProgress.push(pending.get());
+        move(adapter.pull());
+    }
+
+    void watch(List<User> contacts) {
+        if (watch == null) {
+            watch = my.actions.observe(contacts, c -> apply(adapter.update(c)));
+        }
     }
 
     void unwatch() {

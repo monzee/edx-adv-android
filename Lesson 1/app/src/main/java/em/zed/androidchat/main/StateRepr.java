@@ -13,10 +13,10 @@ import java.util.concurrent.Future;
 import edu.galileo.android.androidchat.contactlist.entities.User;
 
 @SuppressLint("DefaultLocale")
-public class StateRepr implements Main.Model.Case {
+public class StateRepr implements Main.View {
 
     public static String stringify(Main.Model state) {
-        state.match(INSTANCE);
+        state.render(INSTANCE);
         return INSTANCE.repr;
     }
 

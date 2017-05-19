@@ -31,7 +31,7 @@ import em.zed.androidchat.backend.Auth;
 
 import static edu.galileo.android.androidchat.AndroidChatApplication.GLOBALS;
 
-public class LoginActivity extends AppCompatActivity implements Login.Model.Case {
+public class LoginActivity extends AppCompatActivity implements Login.View {
 
     public static final int RESULT = 1;
     public static final String TOKEN_AUTH = "key-auth-token";
@@ -40,7 +40,7 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
     private static class Scope {
         final ExecutorService bg = GLOBALS.io();
         final Login.Controller actions = new LoginController(bg, GLOBALS.auth(), GLOBALS.logger());
-        Login.Model state = Login.Model.Case::idle;
+        Login.Model state = Login.View::idle;
     }
 
     @Bind(R.id.btnSignin) Button btnSignIn;
@@ -67,7 +67,7 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
     @Override
     protected void onResume() {
         super.onResume();
-        my.state.match(this);
+        my.state.render(this);
     }
 
     @Override
@@ -111,7 +111,7 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
             try {
                 apply(result.get());
             } catch (ExecutionException e) {
-                apply(of -> of.error(e));
+                apply(v -> v.error(e));
             } catch (InterruptedException ignored) {
             }
         });
@@ -127,9 +127,9 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
     }
 
     @Override
-    public void loginFailed(Login.Reason reason) {
+    public void loginFailed(Login.LoginFailure reason) {
         say(R.string.login_error_message_signin, reason);
-        apply(Login.Model.Case::idle);
+        apply(Login.View::idle);
     }
 
     @Override
@@ -139,7 +139,7 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
             try {
                 apply(result.get());
             } catch (ExecutionException e) {
-                apply(of -> of.error(e));
+                apply(v -> v.error(e));
             } catch (InterruptedException ignored) {
             }
         });
@@ -155,11 +155,11 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
     public void signUpFailed(EnumSet<Login.Invalid> rejected) {
         if (rejected.isEmpty()) {
             say("Email already taken. Did you forget your password?");
-            apply(Login.Model.Case::idle);
+            apply(Login.View::idle);
         } else {
             say(R.string.login_error_message_signup, "; some field was rejected by the service.");
             rejected.add(Login.Invalid.REJECTED);
-            apply(of -> of.invalid(rejected));
+            apply(v -> v.invalid(rejected));
         }
     }
 
@@ -167,7 +167,7 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
     public void error(Throwable e) {
         if (e instanceof TimeoutException) {
             say("Request has taken too long. Try again later.");
-            apply(Login.Model.Case::idle);
+            apply(Login.View::idle);
             return;
         }
         throw new RuntimeException(e);
@@ -190,7 +190,7 @@ public class LoginActivity extends AppCompatActivity implements Login.Model.Case
     void apply(Login.Model newState) {
         runOnUiThread(() -> {
             my.state = newState;
-            newState.match(this);
+            newState.render(this);
         });
     }
 

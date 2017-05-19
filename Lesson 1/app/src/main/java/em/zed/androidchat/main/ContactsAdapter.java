@@ -26,7 +26,7 @@ import edu.galileo.android.androidchat.contactlist.entities.User;
 import em.zed.androidchat.backend.Image;
 
 public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.Contact>
-        implements Main.DisplayPort {
+        implements Main.TargetPort {
 
     public interface Pipe {
         void click(User user);
@@ -104,7 +104,7 @@ public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.Contac
         items.add(contact);
         byEmail.put(contact.getEmail(), pos);
         notifyItemInserted(pos);
-        return sync();
+        return pull();
     }
 
     @Override
@@ -116,7 +116,7 @@ public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.Contac
         } else {
             add(contact);
         }
-        return sync();
+        return pull();
     }
 
     @Override
@@ -126,12 +126,12 @@ public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.Contac
             items.remove(i.intValue());
             notifyItemRemoved(i);
         }
-        return sync();
+        return pull();
     }
 
     @Override
-    public Main.Model sync() {
-        return of -> of.idle(items);
+    public Main.Model pull() {
+        return v -> v.idle(items);
     }
 
     private void reindex() {

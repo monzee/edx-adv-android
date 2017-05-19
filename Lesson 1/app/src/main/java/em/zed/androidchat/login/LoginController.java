@@ -49,14 +49,14 @@ public class LoginController implements Login.Controller {
         Future<Login.Model> result = bg.submit(() -> {
             try {
                 Auth.Tokens tokens = auth.login(email, password);
-                return of -> of.loggedIn(tokens);
+                return v -> v.loggedIn(tokens);
             } catch (Auth.UnknownEmail e) {
-                return of -> of.loginFailed(Login.Reason.UNKNOWN_EMAIL);
+                return v -> v.loginFailed(Login.LoginFailure.UNKNOWN_EMAIL);
             } catch (Auth.BadPassword e) {
-                return of -> of.loginFailed(Login.Reason.BAD_PASSWORD);
+                return v -> v.loginFailed(Login.LoginFailure.BAD_PASSWORD);
             }
         });
-        return of -> of.loggingIn(result);
+        return v -> v.loggingIn(result);
     }
 
     @Override
@@ -70,21 +70,21 @@ public class LoginController implements Login.Controller {
         Future<Login.Model> result = bg.submit(() -> {
             try {
                 if (auth.signUp(email, password)) {
-                    return of -> of.signedUp(login(email, password));
+                    return v -> v.signedUp(login(email, password));
                 } else {
-                    return of -> of.signUpFailed(setOf());
+                    return v -> v.signUpFailed(setOf());
                 }
             } catch (Auth.EmailRejected e) {
-                return of -> of.signUpFailed(setOf(
+                return v -> v.signUpFailed(setOf(
                         Login.Invalid.EMAIL,
                         Login.Invalid.REJECTED));
             } catch (Auth.PasswordRejected e) {
-                return of -> of.signUpFailed(setOf(
+                return v -> v.signUpFailed(setOf(
                         Login.Invalid.PASSWORD,
                         Login.Invalid.REJECTED));
             }
         });
-        return of -> of.signingUp(result);
+        return v -> v.signingUp(result);
     }
 
     static Login.Model validate(String email, String password) {
@@ -96,7 +96,7 @@ public class LoginController implements Login.Controller {
             errors.add(Login.Invalid.PASSWORD);
         }
         if (!errors.isEmpty()) {
-            return of -> of.invalid(errors);
+            return v -> v.invalid(errors);
         }
         return null;
     }
