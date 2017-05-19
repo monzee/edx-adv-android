@@ -28,9 +28,6 @@ public interface Main {
         void removing(Future<Model> task);
         void removed(User contact);
 
-        void adding(Future<Model> task);
-        void added(User contact);
-
         void loggingOut(Future<Model> task);
         void loggedOut();
 
@@ -44,9 +41,8 @@ public interface Main {
     }
 
     interface SourcePort {
-        UserRepository.Canceller observe(List<User> contacts, UserRepository.OnUserUpdate listener);
+        UserRepository.Canceller observe(UserRepository.OnContactsUpdate listener);
         Model loadContacts();
-        Model addContact(String email);
         Model removeContact(String email);
         Model logout();
     }

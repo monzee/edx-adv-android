@@ -20,6 +20,10 @@ public class StateRepr implements Main.View {
         return INSTANCE.repr;
     }
 
+    public static String stringify(Add.Model state) {
+        return null;
+    }
+
     private static StateRepr INSTANCE = new StateRepr();
 
     private String repr;
@@ -62,16 +66,6 @@ public class StateRepr implements Main.View {
     @Override
     public void removed(User contact) {
         repr = "removed | contact email: " + contact.getEmail();
-    }
-
-    @Override
-    public void adding(Future<Main.Model> task) {
-        repr = "adding";
-    }
-
-    @Override
-    public void added(User contact) {
-        repr = "added | contact email: " + contact.getEmail();
     }
 
     @Override

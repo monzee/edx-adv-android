@@ -14,7 +14,9 @@ import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.ImageView;
+import android.widget.Toast;
 
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -63,14 +65,19 @@ public class MainActivity extends AppCompatActivity implements Main.View, Main.R
         Main.SourcePort actions = ctrlBuilder.build(Auth.NO_SESSION);
         Main.Model state = Main.View::booting;
         String subtitle;
+        Add.Model addState = Add.View::idle;
+        Add.Controller addActions;
 
         void login(Auth.Tokens t) {
-            actions = ctrlBuilder.build(GLOBALS.auth().start(t));
+            Auth.Session session = GLOBALS.auth().start(t);
+            actions = ctrlBuilder.build(session);
+            addActions = new AddController(io, GLOBALS.contacts(), session);
         }
     }
 
     @Bind(R.id.toolbar) Toolbar toolbar;
     @Bind(R.id.recyclerViewContacts) RecyclerView recyclerView;
+    @Bind(R.id.fab) View fab;
 
     private final Deque<Pending<Main.Model>> inProgress = new ArrayDeque<>();
     private Scope my;
@@ -123,6 +130,43 @@ public class MainActivity extends AppCompatActivity implements Main.View, Main.R
                         public void cancelled() {
                             LogLevel.D.to(my.log, "bye.");
                             finish();
+                        }
+                    });
+        } else if (fragment instanceof AddDialog) {
+            ((AddDialog) fragment).inject(
+                    my.junction, my.addState, my.addActions,
+                    new AddDialog.Pipe() {
+                        @Override
+                        public void ok(User contact) {
+                            unwatch();
+                            apply(adapter.add(contact));
+                        }
+
+                        @Override
+                        public void cancelled() {
+                            fab.setEnabled(true);
+                        }
+
+                        @Override
+                        public void error(Throwable e) {
+                            say("Error: " + e.getMessage());
+                            MainActivity.this.error(e);
+                        }
+
+                        @Override
+                        public void save(Add.Model state) {
+                            my.addState = state;
+                        }
+
+                        @Override
+                        public void say(String message) {
+                            Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT)
+                                    .show();
+                        }
+
+                        @Override
+                        public void run(Runnable proc) {
+                            runOnUiThread(proc);
                         }
                     });
         }
@@ -198,7 +242,8 @@ public class MainActivity extends AppCompatActivity implements Main.View, Main.R
     @Override
     public void idle(List<User> contacts) {
         adapter.replace(contacts);
-        watch(contacts);
+        fab.setEnabled(true);
+        watch();
     }
 
     @Override
@@ -210,17 +255,6 @@ public class MainActivity extends AppCompatActivity implements Main.View, Main.R
     public void removed(User contact) {
         unwatch();
         apply(adapter.remove(contact));
-    }
-
-    @Override
-    public void adding(Future<Main.Model> task) {
-        join(task);
-    }
-
-    @Override
-    public void added(User contact) {
-        unwatch();
-        apply(adapter.add(contact));
     }
 
     @Override
@@ -267,9 +301,9 @@ public class MainActivity extends AppCompatActivity implements Main.View, Main.R
     }
 
     @OnClick(R.id.fab)
-    void add() {
-        // show dialog, receive email
-        // call controller.addContact
+    void add(View button) {
+        AddDialog.show(getSupportFragmentManager());
+        button.setEnabled(false);
     }
 
     void join(Future<Main.Model> result) {
@@ -288,9 +322,10 @@ public class MainActivity extends AppCompatActivity implements Main.View, Main.R
         move(adapter.pull());
     }
 
-    void watch(List<User> contacts) {
+    void watch() {
         if (watch == null) {
-            watch = my.actions.observe(contacts, c -> apply(adapter.update(c)));
+            watch = my.actions
+                    .observe(cs -> apply(v -> v.loaded(my.subtitle, cs)));
         }
     }
 

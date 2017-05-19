@@ -40,15 +40,19 @@ public interface Contacts {
          */
         void broadcastStatus(User user) throws InterruptedException;
 
+        boolean exists(String email) throws InterruptedException;
+
         /**
          * This is needed because the email key in the contacts map may not be
          * necessarily in the same format as the email.
          *
          * @param email email formatted for display
          * @param contacts the presence map
-         * @return the value of the email in the presence map
+         * @return whether the contact is online, offline or absent in the map
          */
-        boolean isOnline(String email, Map<String, Boolean> contacts);
+        Is checkOnlineStatus(String email, Map<String, Boolean> contacts);
+
     }
 
+    enum Is { ONLINE, OFFLINE, ABSENT }
 }

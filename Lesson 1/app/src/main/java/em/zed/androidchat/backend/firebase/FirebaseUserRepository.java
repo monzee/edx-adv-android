@@ -9,7 +9,9 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.ValueEventListener;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
@@ -69,12 +71,12 @@ public class FirebaseUserRepository implements UserRepository {
     }
 
     @Override
-    public Canceller onUpdate(String email, OnUserUpdate listener) {
+    public Canceller onUpdate(String email, OnContactsUpdate listener) {
         return onUpdate(Globals.IMMEDIATE, email, listener);
     }
 
     @Override
-    public Canceller onUpdate(Executor ex, String email, OnUserUpdate listener) {
+    public Canceller onUpdate(Executor ex, String email, OnContactsUpdate listener) {
         ValueEventListener profileChange = new ValueEventListener() {
             boolean first = true;
 
@@ -85,7 +87,17 @@ public class FirebaseUserRepository implements UserRepository {
                     return;
                 }
                 User u = node.getValue(User.class);
-                ex.execute(() -> listener.updated(u));
+                List<User> fixed = new ArrayList<>();
+                Map<String, Boolean> contacts = u.getContacts();
+                if (contacts != null) {
+                    for (Map.Entry<String, Boolean> e : contacts.entrySet()) {
+                        fixed.add(new User(
+                                Schema.illegalize(e.getKey()),
+                                e.getValue(),
+                                null));
+                    }
+                }
+                ex.execute(() -> listener.updated(fixed));
             }
 
             @Override

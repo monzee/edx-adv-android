@@ -56,23 +56,13 @@ public class MainController implements Main.SourcePort {
     }
 
     @Override
-    public UserRepository.Canceller observe(
-            List<User> userContacts,
-            UserRepository.OnUserUpdate listener) {
+    public UserRepository.Canceller observe(UserRepository.OnContactsUpdate listener) {
         if (userEmail == null) {
             return UserRepository.Canceller.NOOP;
         }
-        return my.users.onUpdate(userEmail, user -> {
+        return my.users.onUpdate(userEmail, contacts -> {
             LogLevel.I.to(my.log, "#observe");
-            Map<String, Boolean> freshContacts = user.getContacts();
-            if (freshContacts != null) for (User c : userContacts) {
-                boolean online = my.contacts.isOnline(c.getEmail(), freshContacts);
-                if (c.isOnline() != online) {
-                    LogLevel.D.to(my.log, "updated %s->%s", c.getEmail(), online);
-                    c.setOnline(online);
-                    listener.updated(c);
-                }
-            }
+            listener.updated(contacts);
         });
     }
 
@@ -101,26 +91,6 @@ public class MainController implements Main.SourcePort {
             }
         });
         return v -> v.loading(f);
-    }
-
-    @Override
-    public Main.Model addContact(String email) {
-        LogLevel.I.to(my.log, "#addContact(%s)", email);
-        Future<Main.Model> f = my.bg.submit(() -> {
-            switch (session.check()) {
-                case LOGGED_IN:
-                    boolean online = my.contacts.addContact(userEmail, email);
-                    return v -> v.added(new User(email, online, null));
-                case EXPIRED:
-                    LogLevel.D.to(my.log, "EXPIRED");
-                    return session.refresh() ? addContact(email) : Main.View::loggedOut;
-                case GUEST:
-                    LogLevel.D.to(my.log, "GUEST");
-                default:
-                    return Main.View::loggedOut;
-            }
-        });
-        return v -> v.adding(f);
     }
 
     @Override

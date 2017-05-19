@@ -4,6 +4,7 @@
 
 package em.zed.androidchat.backend;
 
+import java.util.List;
 import java.util.concurrent.Executor;
 
 import edu.galileo.android.androidchat.contactlist.entities.User;
@@ -17,6 +18,10 @@ public interface UserRepository {
         void updated(User user);
     }
 
+    interface OnContactsUpdate {
+        void updated(List<User> contacts);
+    }
+
     interface Canceller {
         Canceller NOOP = () -> {};
         void cancel();
@@ -25,7 +30,7 @@ public interface UserRepository {
     User getByEmail(String email) throws InterruptedException;
     void put(User user) throws InterruptedException;
     void put(User user, boolean fireAndForget) throws InterruptedException;
-    Canceller onUpdate(String email, OnUserUpdate listener);
-    Canceller onUpdate(Executor ex, String email, OnUserUpdate listener);
+    Canceller onUpdate(String email, OnContactsUpdate listener);
+    Canceller onUpdate(Executor ex, String email, OnContactsUpdate listener);
 
 }

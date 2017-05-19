@@ -91,29 +91,13 @@ public class FakeUserRepository implements UserRepository {
     }
 
     @Override
-    public Canceller onUpdate(String email, OnUserUpdate listener) {
+    public Canceller onUpdate(String email, OnContactsUpdate listener) {
         return onUpdate(Globals.IMMEDIATE, email, listener);
     }
 
     @Override
-    public Canceller onUpdate(Executor ex, String email, OnUserUpdate listener) {
-        if (bg == null) {
-            return Canceller.NOOP;
-        }
-        synchronized (watchersByEmail) {
-            if (!watchersByEmail.containsKey(email)) {
-                watchersByEmail.put(email, new ArrayList<>());
-            }
-            List<Watcher> watchers = watchersByEmail.get(email);
-            Watcher w = new Watcher(ex, listener);
-            watchers.add(w);
-            return () -> {
-                watchers.remove(w);
-                if (watchers.isEmpty()) {
-                    watchersByEmail.remove(email);
-                }
-            };
-        }
+    public Canceller onUpdate(Executor ex, String email, OnContactsUpdate listener) {
+        return Canceller.NOOP;
     }
 
     private void notifyUpdate(String key) {

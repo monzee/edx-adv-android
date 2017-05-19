@@ -48,11 +48,10 @@ public class FirebaseContacts implements Contacts.Service {
 
     @Override
     public boolean removeContact(String source, String target) throws InterruptedException {
-        String left = Schema.legalize(source);
-        String right = Schema.legalize(target);
-        // TODO: is there a way to do these in one call?
-        usersNode.child(left).child(Schema.CONTACTS).child(right).removeValue();
-        usersNode.child(right).child(Schema.CONTACTS).child(left).removeValue();
+        Map<String, Object> nodes = new HashMap<>();
+        nodes.put(Schema.pathTo(source, Schema.CONTACTS, target), null);
+        nodes.put(Schema.pathTo(target, Schema.CONTACTS, source), null);
+        usersNode.updateChildren(nodes);
         return getUser(target).isOnline();
     }
 
@@ -72,9 +71,20 @@ public class FirebaseContacts implements Contacts.Service {
     }
 
     @Override
-    public boolean isOnline(String email, Map<String, Boolean> contacts) {
+    public boolean exists(String email) throws InterruptedException {
+        return getUser(email) != null;
+    }
+
+    @Override
+    public Contacts.Is checkOnlineStatus(String email, Map<String, Boolean> contacts) {
         Boolean value = contacts.get(Schema.legalize(email));
-        return value != null && value;
+        if (value == null) {
+            return Contacts.Is.ABSENT;
+        }
+        if (value) {
+            return Contacts.Is.ONLINE;
+        }
+        return Contacts.Is.OFFLINE;
     }
 
     private User getUser(String email) throws InterruptedException {
