@@ -79,7 +79,7 @@ public class FirebaseEmailAuth implements Auth.Service {
                 });
         boolean ok = timeout > 0 ? result.await(timeout) : result.await();
         if (ok) {
-            users.put(new User(email, true, null), true);
+            users.put(new User(email, true, null), false);
         }
         return ok;
     }
@@ -115,7 +115,7 @@ public class FirebaseEmailAuth implements Auth.Service {
             Auth.Tokens t = tokens;
 
             @Override
-            public Auth.Status check() throws InterruptedException {
+            public Auth.Status check() {
                 FirebaseUser user = fbAuth.getCurrentUser();
                 if (user != null && t.auth != null && t.auth.equals(user.getUid())) {
                     return Auth.Status.LOGGED_IN;

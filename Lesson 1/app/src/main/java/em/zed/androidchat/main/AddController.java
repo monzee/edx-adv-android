@@ -59,7 +59,7 @@ public class AddController implements Add.Controller {
         if (email == null || email.isEmpty()) {
             return "Email cannot be empty!";
         }
-        if (!email.contains("@") || email.lastIndexOf('.') < email.indexOf('@')) {
+        if (email.lastIndexOf('.') < email.indexOf('@')) {
             return "Malformed email!";
         }
         return null;

@@ -89,7 +89,7 @@ public class LoginController implements Login.Controller {
 
     static Login.Model validate(String email, String password) {
         EnumSet<Login.Invalid> errors = setOf();
-        if (email == null || !email.contains("@")) {
+        if (email == null || email.lastIndexOf('.') < email.indexOf('@')) {
             errors.add(Login.Invalid.EMAIL);
         }
         if (password == null || password.isEmpty()) {

@@ -28,7 +28,7 @@ public class SessionFragment extends Fragment {
     public interface Pipe {
         @WorkerThread
         void loggedIn(Auth.Tokens tokens);
-        void cancelled();
+        void loginCancelled();
     }
 
     public static void attach(FragmentManager fm) {
@@ -92,7 +92,7 @@ public class SessionFragment extends Fragment {
         }
         if (resultCode != RESULT_OK) {
             destroy();
-            pipe.cancelled();
+            pipe.loginCancelled();
         } else {
             String auth = data.getStringExtra(LoginActivity.TOKEN_AUTH);
             String refresh = data.getStringExtra(LoginActivity.TOKEN_REFRESH);

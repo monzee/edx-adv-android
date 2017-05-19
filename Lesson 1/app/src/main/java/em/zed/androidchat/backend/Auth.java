@@ -30,7 +30,14 @@ public interface Auth {
     }
 
     interface Session {
-        Status check() throws InterruptedException;
+        /**
+         * This should return immediately and never call out into the remote
+         * service! Need to implement some sort of local cache. Luckily
+         * Firebase already does so.
+         *
+         * @return the current logged in status
+         */
+        Status check();
         boolean refresh() throws AuthError, InterruptedException, TimeoutException;
         Tokens current();
         User minimalProfile() throws InterruptedException;

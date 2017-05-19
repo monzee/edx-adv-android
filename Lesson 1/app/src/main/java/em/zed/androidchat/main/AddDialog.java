@@ -8,11 +8,13 @@ import android.app.Dialog;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v7.app.AlertDialog;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 
@@ -24,18 +26,20 @@ import butterknife.Bind;
 import butterknife.ButterKnife;
 import edu.galileo.android.androidchat.R;
 import edu.galileo.android.androidchat.contactlist.entities.User;
+import em.zed.androidchat.LogLevel;
+import em.zed.androidchat.Logger;
 
 public class AddDialog extends DialogFragment implements Add.View {
 
     public static final String TAG = AddDialog.class.getSimpleName();
 
     public interface Pipe {
-        void ok(User contact);
-        void cancelled();
+        void added(User contact);
+        void addCancelled();
         void error(Throwable e);
         void save(Add.Model state);
         void say(String message);
-        void run(Runnable proc);
+        void runOnUiThread(Runnable proc);
     }
 
     public static void show(FragmentManager fm) {
@@ -45,6 +49,7 @@ public class AddDialog extends DialogFragment implements Add.View {
     }
 
     private ExecutorService junction;
+    private Logger log;
     private Add.Model state = Add.View::idle;
     private Add.Controller actions;
     private Pipe pipe;
@@ -56,10 +61,12 @@ public class AddDialog extends DialogFragment implements Add.View {
 
     public AddDialog inject(
             ExecutorService junction,
+            Logger log,
             Add.Model state,
             Add.Controller actions,
             Pipe pipe) {
         this.junction = junction;
+        this.log = log;
         this.state = state;
         this.actions = actions;
         this.pipe = pipe;
@@ -75,16 +82,12 @@ public class AddDialog extends DialogFragment implements Add.View {
         AlertDialog dialog = new AlertDialog.Builder(getActivity())
                 .setTitle(R.string.addcontact_message_title)
                 .setPositiveButton(R.string.addcontact_message_add, null)
-                .setNegativeButton(R.string.addcontact_message_cancel, null)
+                .setNegativeButton(R.string.addcontact_message_cancel, (d, _i) -> d.cancel())
                 .setView(root)
                 .create();
-        dialog.setOnShowListener(_dlg -> {
-            dialog.getButton(DialogInterface.BUTTON_POSITIVE)
-                    .setOnClickListener(view -> {
-                        apply(actions.addContact(inputEmail.getText()));
-                    });
-            dialog.setOnCancelListener(dialogInterface -> pipe.cancelled());
-        });
+        dialog.setOnShowListener(dialogInterface -> dialog
+                .getButton(DialogInterface.BUTTON_POSITIVE)
+                .setOnClickListener(_v -> apply(actions.addContact(inputEmail.getText()))));
         return dialog;
     }
 
@@ -97,10 +100,23 @@ public class AddDialog extends DialogFragment implements Add.View {
     @Override
     public void onPause() {
         super.onPause();
+        pipe.save(state);
         if (join != null) {
             join.cancel(true);
         }
-        pipe.save(state);
+    }
+
+    @Override
+    public void onCancel(DialogInterface dialog) {
+        super.onCancel(dialog);
+        pipe.addCancelled();
+    }
+
+    @Override
+    public void onDetach() {
+        super.onDetach();
+        ButterKnife.unbind(this);
+        pipe = null;
     }
 
     @Override
@@ -132,7 +148,7 @@ public class AddDialog extends DialogFragment implements Add.View {
     @Override
     public void added(String email, boolean online) {
         apply(Add.View::idle);
-        pipe.ok(new User(email, online, null));
+        pipe.added(new User(email, online, null));
         dismiss();
     }
 
@@ -150,16 +166,17 @@ public class AddDialog extends DialogFragment implements Add.View {
     }
 
     void apply(Add.Model newState) {
-        pipe.run(() -> {
+        pipe.runOnUiThread(() -> {
             state = newState;
             newState.render(this);
+            LogLevel.D.to(log, "  -> %s", StateRepr.stringify(newState));
         });
     }
 
     void spin(boolean busy) {
         if (busy) {
             inputEmail.setEnabled(false);
-            inputEmail.setVisibility(View.GONE);
+            inputEmail.setVisibility(View.INVISIBLE);
             progressBar.setVisibility(View.VISIBLE);
         } else {
             inputEmail.setEnabled(true);

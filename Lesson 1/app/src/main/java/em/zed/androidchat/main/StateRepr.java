@@ -6,14 +6,14 @@ package em.zed.androidchat.main;
 
 import android.annotation.SuppressLint;
 
-import java.util.Deque;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.Future;
 
 import edu.galileo.android.androidchat.contactlist.entities.User;
 
 @SuppressLint("DefaultLocale")
-public class StateRepr implements Main.View {
+public class StateRepr implements Main.View, Add.View {
 
     public static String stringify(Main.Model state) {
         state.render(INSTANCE);
@@ -21,7 +21,8 @@ public class StateRepr implements Main.View {
     }
 
     public static String stringify(Add.Model state) {
-        return null;
+        state.render(INSTANCE);
+        return INSTANCE.repr;
     }
 
     private static StateRepr INSTANCE = new StateRepr();
@@ -36,7 +37,7 @@ public class StateRepr implements Main.View {
     }
 
     @Override
-    public void replay(Deque<Main.Model> backlog) {
+    public void replay(Queue<Main.Model> backlog) {
         repr = "replay | backlog size: " + backlog.size();
     }
 
@@ -81,6 +82,31 @@ public class StateRepr implements Main.View {
     @Override
     public void willChatWith(User contact) {
         repr = "will-chat-with | contact email: " + contact.getEmail();
+    }
+
+    @Override
+    public void idle() {
+        repr = "idle";
+    }
+
+    @Override
+    public void invalid(String message) {
+        repr = "invalid | message: " + message;
+    }
+
+    @Override
+    public void adding(Future<Add.Model> task) {
+        repr = "adding";
+    }
+
+    @Override
+    public void added(String email, boolean online) {
+        repr = "added | email: " + email + "; online: " + online;
+    }
+
+    @Override
+    public void addFailed(String reason) {
+        repr = "addFailed | reason: " + reason;
     }
 
     @Override

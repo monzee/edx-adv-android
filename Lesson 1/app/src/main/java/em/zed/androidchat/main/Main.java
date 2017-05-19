@@ -4,8 +4,8 @@
 
 package em.zed.androidchat.main;
 
-import java.util.Deque;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.Future;
 
 import edu.galileo.android.androidchat.contactlist.entities.User;
@@ -19,7 +19,7 @@ public interface Main {
 
     interface View {
         void booting();
-        void replay(Deque<Model> backlog);
+        void replay(Queue<Model> backlog);
 
         void loading(Future<Model> task);
         void loaded(String userEmail, List<User> contacts);
@@ -38,6 +38,7 @@ public interface Main {
     interface Renderer {
         void move(Model newState);
         void apply(Model newState);
+        void apply(Future<Model> task);
     }
 
     interface SourcePort {

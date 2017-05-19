@@ -6,6 +6,7 @@ package em.zed.androidchat.main;
 
 import android.graphics.Color;
 import android.support.annotation.NonNull;
+import android.support.v7.util.DiffUtil;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -93,9 +94,10 @@ public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.Contac
 
     @Override
     public void replace(List<User> items) {
+        DiffUtil.DiffResult result = diff(this.items, items);
         this.items = items;
+        result.dispatchUpdatesTo(this);
         reindex();
-        notifyDataSetChanged();
     }
 
     @Override
@@ -139,6 +141,32 @@ public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.Contac
         for (int i = 0; i < items.size(); i++) {
             byEmail.put(items.get(i).getEmail(), i);
         }
+    }
+
+    private static DiffUtil.DiffResult diff(List<User> old, List<User> fresh) {
+        return DiffUtil.calculateDiff(new DiffUtil.Callback() {
+            @Override
+            public int getOldListSize() {
+                return old.size();
+            }
+
+            @Override
+            public int getNewListSize() {
+                return fresh.size();
+            }
+
+            @Override
+            public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+                String email = fresh.get(newItemPosition).getEmail();
+                return old.get(oldItemPosition).getEmail().equals(email);
+            }
+
+            @Override
+            public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+                boolean online = fresh.get(newItemPosition).isOnline();
+                return old.get(oldItemPosition).isOnline() == online;
+            }
+        }, true);
     }
 
 }
