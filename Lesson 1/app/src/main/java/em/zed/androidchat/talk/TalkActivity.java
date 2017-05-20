@@ -15,6 +15,7 @@ import android.support.v7.widget.Toolbar;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayDeque;
 import java.util.List;
@@ -34,12 +35,12 @@ import edu.galileo.android.androidchat.chat.entities.ChatMessage;
 import edu.galileo.android.androidchat.contactlist.entities.User;
 import em.zed.androidchat.LogLevel;
 import em.zed.androidchat.Logger;
-import em.zed.androidchat.Pending;
 import em.zed.androidchat.StateRepr;
 import em.zed.androidchat.backend.Auth;
 import em.zed.androidchat.backend.Files;
 import em.zed.androidchat.backend.Image;
 import em.zed.androidchat.concerns.SessionFragment;
+import em.zed.androidchat.util.Pending;
 
 import static edu.galileo.android.androidchat.AndroidChatApplication.GLOBALS;
 
@@ -58,11 +59,13 @@ public class TalkActivity extends AppCompatActivity implements
         final Auth.Service auth = GLOBALS.auth();
         final User victim;
         Talk.Model state;
-        Talk.SourcePort actions = new TalkController(io, log, null, Auth.NO_SESSION);
+        Talk.Model checkpoint;
+        Talk.SourcePort actions;
 
         Scope(String email, boolean online) {
             victim = new User(email, online, null);
             state = v -> v.talking(victim.getEmail(), victim.isOnline());
+            checkpoint = state;
         }
 
         void login(Auth.Tokens tokens) {
@@ -80,7 +83,6 @@ public class TalkActivity extends AppCompatActivity implements
     private final Queue<Pending<Talk.Model>> inProgress = new ArrayDeque<>();
     private Scope my;
     private SessionFragment session;
-    private Talk.Model checkpoint;
     private Runnable cancelWatch;
 
     @Override
@@ -89,9 +91,6 @@ public class TalkActivity extends AppCompatActivity implements
         if (my == null) {
             Intent i = getIntent();
             my = new Scope(i.getStringExtra(EMAIL), i.getBooleanExtra(ONLINE, false));
-        }
-        if (checkpoint == null) {
-            checkpoint = my.state;
         }
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
@@ -111,14 +110,10 @@ public class TalkActivity extends AppCompatActivity implements
     }
 
     @Override
-    public Object onRetainCustomNonConfigurationInstance() {
-        return my;
-    }
-
-    @Override
     public void onAttachFragment(Fragment fragment) {
         if (fragment instanceof SessionFragment) {
             session = ((SessionFragment) fragment).inject(my.io, my.files, my.log, this);
+            session.start(false);
         }
     }
 
@@ -135,7 +130,13 @@ public class TalkActivity extends AppCompatActivity implements
             cancelWatch.run();
             cancelWatch = null;
         }
-        my.state = v -> v.booting(dump());
+        Queue<Talk.Model> backlog = dump();
+        my.state = v -> v.booting(backlog);
+    }
+
+    @Override
+    public Object onRetainCustomNonConfigurationInstance() {
+        return my;
     }
 
     @Override
@@ -166,7 +167,6 @@ public class TalkActivity extends AppCompatActivity implements
             }
         })));
         inProgress.add(pending.get());
-        move(Talk.View::noop);
     }
 
     @Override
@@ -188,7 +188,6 @@ public class TalkActivity extends AppCompatActivity implements
 
     @Override
     public void talking(String email, boolean online) {
-        checkpoint = my.state;
         if (email == null) {
             apply(v -> v.error(new IllegalArgumentException("Argument required: " + EMAIL)));
             return;
@@ -198,28 +197,16 @@ public class TalkActivity extends AppCompatActivity implements
 
     @Override
     public void fetchingLog(Future<Talk.Model> task) {
+        my.checkpoint = my.state;
         apply(task);
     }
 
     @Override
     public void fetchedLog(List<ChatMessage> chatLog) {
-        apply(v -> v.idleChat(chatLog));
-    }
-
-    @Override
-    public void noop() {
-        // apply(adapter.pull());
-    }
-
-    @Override
-    public void idleChat(List<ChatMessage> log) {
-        checkpoint = my.state;
-        // adapter.push(log)
+        // adapter.replace(log)
         if (cancelWatch == null) {
             cancelWatch = my.actions.listen(message -> {
-                if (message.isSentByMe()) {
-                    apply(v -> v.said(message));
-                } else {
+                if (!message.isSentByMe()) {
                     apply(v -> v.heard(message));
                 }
             });
@@ -227,34 +214,44 @@ public class TalkActivity extends AppCompatActivity implements
     }
 
     @Override
+    public void idle() {
+        // move(adapter.pull());
+    }
+
+    @Override
     public void saying(Future<Talk.Model> task) {
+        my.checkpoint = my.state;
         apply(task);
     }
 
     @Override
     public void said(ChatMessage message) {
         // apply(adapter.push(message))
+        move(Talk.View::idle);
     }
 
     @Override
     public void heard(ChatMessage message) {
         // apply(adapter.push(message))
+        move(Talk.View::idle);
     }
 
     @Override
     public void loggingIn() {
-        session.start(false);
+        session.start(true);
+        move(my.checkpoint);
     }
 
     @Override
     public void error(Throwable e) {
-        throw new RuntimeException(e);
+        LogLevel.E.to(my.log, e);
+        Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+        finish();
     }
 
     @Override
     public void loggedIn(Auth.Tokens tokens) {
         my.login(tokens);
-        apply(checkpoint);
     }
 
     @Override
@@ -266,6 +263,7 @@ public class TalkActivity extends AppCompatActivity implements
     @OnClick(R.id.btnSendMessage)
     void send() {
         apply(my.actions.say(my.victim.getEmail(), inputMessage.getText()));
+        inputMessage.setText(null);
     }
 
 }

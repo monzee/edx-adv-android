@@ -1,7 +1,8 @@
-package em.zed.androidchat.main;
 /*
  * This file is a part of the Lesson 1 project.
  */
+
+package em.zed.androidchat.main.add;
 
 import java.util.concurrent.Future;
 

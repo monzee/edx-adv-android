@@ -15,6 +15,8 @@ import em.zed.androidchat.Logger;
 import em.zed.androidchat.backend.Auth;
 import em.zed.androidchat.backend.Files;
 import em.zed.androidchat.backend.Image;
+import em.zed.androidchat.main.add.Add;
+import em.zed.androidchat.main.add.AddController;
 
 import static edu.galileo.android.androidchat.AndroidChatApplication.GLOBALS;
 

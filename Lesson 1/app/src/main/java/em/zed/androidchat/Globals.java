@@ -17,6 +17,7 @@ import em.zed.androidchat.backend.Image;
 import em.zed.androidchat.backend.UserRepository;
 import em.zed.androidchat.backend.fake.FakeAuth;
 import em.zed.androidchat.backend.fake.FakeUserRepository;
+import em.zed.androidchat.util.Lazy;
 
 public interface Globals {
 

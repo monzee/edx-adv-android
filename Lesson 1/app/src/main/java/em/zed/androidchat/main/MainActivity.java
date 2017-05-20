@@ -32,12 +32,14 @@ import butterknife.OnClick;
 import edu.galileo.android.androidchat.R;
 import edu.galileo.android.androidchat.contactlist.entities.User;
 import em.zed.androidchat.LogLevel;
-import em.zed.androidchat.Pending;
 import em.zed.androidchat.StateRepr;
 import em.zed.androidchat.backend.Auth;
 import em.zed.androidchat.backend.UserRepository;
 import em.zed.androidchat.concerns.SessionFragment;
+import em.zed.androidchat.main.add.Add;
+import em.zed.androidchat.main.add.AddDialog;
 import em.zed.androidchat.talk.TalkActivity;
+import em.zed.androidchat.util.Pending;
 
 public class MainActivity extends AppCompatActivity implements
         Main.View, Main.Renderer, ContactsAdapter.Pipe, SessionFragment.Pipe, AddDialog.Pipe {

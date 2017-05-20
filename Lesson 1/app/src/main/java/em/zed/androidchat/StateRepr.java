@@ -12,8 +12,8 @@ import java.util.concurrent.Future;
 
 import edu.galileo.android.androidchat.chat.entities.ChatMessage;
 import edu.galileo.android.androidchat.contactlist.entities.User;
-import em.zed.androidchat.main.Add;
 import em.zed.androidchat.main.Main;
+import em.zed.androidchat.main.add.Add;
 import em.zed.androidchat.talk.Talk;
 
 @SuppressLint("DefaultLocale")
@@ -57,16 +57,6 @@ public class StateRepr implements Talk.View, Main.View, Add.View {
     @Override
     public void fetchedLog(List<ChatMessage> chatLog) {
         repr = "fetched-log | log size: " + chatLog.size();
-    }
-
-    @Override
-    public void noop() {
-        repr = "no-op";
-    }
-
-    @Override
-    public void idleChat(List<ChatMessage> log) {
-        repr = "idle | log size: " + log.size();
     }
 
     @Override

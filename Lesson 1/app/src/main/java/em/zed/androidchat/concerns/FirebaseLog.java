@@ -2,13 +2,15 @@
  * This file is a part of the Lesson 1 project.
  */
 
-package em.zed.androidchat;
+package em.zed.androidchat.concerns;
 
 import android.util.Log;
 
 import com.google.firebase.crash.FirebaseCrash;
 
 import edu.galileo.android.androidchat.BuildConfig;
+import em.zed.androidchat.LogLevel;
+import em.zed.androidchat.Logger;
 
 public class FirebaseLog implements Logger {
 

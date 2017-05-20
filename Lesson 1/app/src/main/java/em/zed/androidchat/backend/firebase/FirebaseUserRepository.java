@@ -17,9 +17,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 
 import edu.galileo.android.androidchat.contactlist.entities.User;
-import em.zed.androidchat.Either;
 import em.zed.androidchat.Globals;
 import em.zed.androidchat.backend.UserRepository;
+import em.zed.androidchat.util.Either;
 
 public class FirebaseUserRepository implements UserRepository {
 

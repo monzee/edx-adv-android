@@ -16,8 +16,8 @@ import java.util.List;
 import java.util.Map;
 
 import edu.galileo.android.androidchat.chat.entities.ChatMessage;
-import em.zed.androidchat.Either;
 import em.zed.androidchat.backend.ChatRepository;
+import em.zed.androidchat.util.Either;
 
 public class FirebaseChatRepository implements ChatRepository {
 
@@ -30,30 +30,28 @@ public class FirebaseChatRepository implements ChatRepository {
     @Override
     public Log getLog(String sender, String receiver) {
         return new Log() {
-            final String pairKey = Schema.legalize(pairKey(sender, receiver));
-            final List<ChatMessage> history = new ArrayList<>();
+            final DatabaseReference ref =
+                    chatRoot.child(Schema.legalize(pairKey(sender, receiver)));
 
             @Override
             public List<ChatMessage> history() throws InterruptedException {
-                if (history.isEmpty()) {
-                    Either.Unchecked<Void> result = new Either.Unchecked<>();
-                    chatRoot.child(pairKey).addListenerForSingleValueEvent(new ValueEventListener() {
-                        @Override
-                        public void onDataChange(DataSnapshot dataSnapshot) {
-                            for (DataSnapshot row : dataSnapshot.getChildren()) {
-                                history.add(row.getValue(ChatMessage.class));
-                            }
-                            result.ok(null);
+                Either.Unchecked<List<ChatMessage>> result = new Either.Unchecked<>();
+                ref.addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot dataSnapshot) {
+                        List<ChatMessage> history = new ArrayList<>();
+                        for (DataSnapshot row : dataSnapshot.getChildren()) {
+                            history.add(row.getValue(ChatMessage.class));
                         }
+                        result.ok(history);
+                    }
 
-                        @Override
-                        public void onCancelled(DatabaseError databaseError) {
-                            result.err(databaseError.toException());
-                        }
-                    });
-                    result.await();
-                }
-                return history;
+                    @Override
+                    public void onCancelled(DatabaseError databaseError) {
+                        result.err(databaseError.toException());
+                    }
+                });
+                return result.await();
             }
 
             @Override
@@ -61,7 +59,9 @@ public class FirebaseChatRepository implements ChatRepository {
                 ChildEventListener onUpdate = new ChildEventListener() {
                     @Override
                     public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                        history.add(dataSnapshot.getValue(ChatMessage.class));
+                        ChatMessage message = dataSnapshot.getValue(ChatMessage.class);
+                        message.setSentByMe(sender.equals(message.getSender()));
+                        listener.got(message);
                     }
 
                     @Override
@@ -84,7 +84,6 @@ public class FirebaseChatRepository implements ChatRepository {
 
                     }
                 };
-                DatabaseReference ref = chatRoot.child(pairKey);
                 ref.addChildEventListener(onUpdate);
                 return () -> ref.removeEventListener(onUpdate);
             }
@@ -95,8 +94,8 @@ public class FirebaseChatRepository implements ChatRepository {
     public ChatMessage put(String sender, String receiver, String message) {
         try {
             return put(sender, receiver, message, true);
-        } catch (InterruptedException ignored) {
-            return null;
+        } catch (InterruptedException impossible) {
+            throw new RuntimeException("nothing is", impossible);
         }
     }
 
@@ -107,11 +106,10 @@ public class FirebaseChatRepository implements ChatRepository {
             String message,
             boolean fireAndForget) throws InterruptedException {
         String pairKey = Schema.legalize(pairKey(sender, receiver));
-        boolean sentByMe = sender.compareTo(receiver) > 0;
         Map<String, Object> values = new HashMap<>();
         values.put(Schema.MESSAGE, message);
         values.put(Schema.SENDER, sender);
-        values.put(Schema.SENT_BY_ME, sentByMe);
+        values.put(Schema.SENT_BY_ME, sender.compareTo(receiver) > 0);
         DatabaseReference newRow = chatRoot.child(pairKey).push();
         if (fireAndForget) {
             newRow.updateChildren(values);
@@ -127,7 +125,7 @@ public class FirebaseChatRepository implements ChatRepository {
             result.await();
         }
         ChatMessage m = new ChatMessage(sender, message);
-        m.setSentByMe(sentByMe);
+        m.setSentByMe(true);
         return m;
     }
 

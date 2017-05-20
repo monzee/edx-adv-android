@@ -13,15 +13,13 @@ import java.util.concurrent.ExecutorService;
 
 import edu.galileo.android.androidchat.lib.GlideImageLoader;
 import edu.galileo.android.androidchat.lib.ImageLoader;
-import em.zed.androidchat.AndroidLog;
 import em.zed.androidchat.Globals;
-import em.zed.androidchat.Lazy;
 import em.zed.androidchat.Logger;
 import em.zed.androidchat.backend.Auth;
 import em.zed.androidchat.backend.ChatRepository;
-import em.zed.androidchat.backend.Image;
 import em.zed.androidchat.backend.Contacts;
 import em.zed.androidchat.backend.Files;
+import em.zed.androidchat.backend.Image;
 import em.zed.androidchat.backend.UserRepository;
 import em.zed.androidchat.backend.firebase.FirebaseChatRepository;
 import em.zed.androidchat.backend.firebase.FirebaseContacts;
@@ -29,6 +27,8 @@ import em.zed.androidchat.backend.firebase.FirebaseEmailAuth;
 import em.zed.androidchat.backend.firebase.FirebaseUserRepository;
 import em.zed.androidchat.backend.firebase.Schema;
 import em.zed.androidchat.backend.glide.GravatarImages;
+import em.zed.androidchat.concerns.AndroidLog;
+import em.zed.androidchat.util.Lazy;
 
 
 public class AndroidChatApplication extends Application implements Globals {

@@ -2,23 +2,23 @@
  * This file is a part of the Lesson 1 project.
  */
 
-package em.zed.androidchat;
+package em.zed.androidchat.util;
 
 import java.util.concurrent.Future;
 
 public class Pending<T> {
 
-    private final T snapshot;
+    private final T producer;
     private final Future<?> join;
 
-    public Pending(T snapshot, Future<?> join) {
-        this.snapshot = snapshot;
+    public Pending(T producer, Future<?> join) {
+        this.producer = producer;
         this.join = join;
     }
 
     public T cancel() {
         join.cancel(true);
-        return snapshot;
+        return producer;
     }
 
 }

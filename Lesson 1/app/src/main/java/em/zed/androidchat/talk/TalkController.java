@@ -23,7 +23,11 @@ public class TalkController implements Talk.SourcePort {
 
     private ChatRepository.Log chatLog;
 
-    public TalkController(ExecutorService io, Logger log, ChatRepository chats, Auth.Session session) {
+    public TalkController(
+            ExecutorService io,
+            Logger log,
+            ChatRepository chats,
+            Auth.Session session) {
         this.io = io;
         this.log = log;
         this.chats = chats;
@@ -40,16 +44,16 @@ public class TalkController implements Talk.SourcePort {
 
     @Override
     public Talk.Model fetchLog(String otherEmail) {
+        LogLevel.I.to(log, "#fetchLog(%s)", otherEmail);
         Future<Talk.Model> f = io.submit(() -> {
             switch (session.check()) {
                 case LOGGED_IN:
-                    LogLevel.D.to(log, "here");
                     chatLog = chats.getLog(session.minimalProfile().getEmail(), otherEmail);
                     List<ChatMessage> history = chatLog.history();
                     return v -> v.fetchedLog(history);
                 case EXPIRED:
                     if (session.refresh()) {
-                        fetchLog(otherEmail);
+                        return fetchLog(otherEmail);
                     }
             }
             return Talk.View::loggingIn;
@@ -59,8 +63,9 @@ public class TalkController implements Talk.SourcePort {
 
     @Override
     public Talk.Model say(String to, CharSequence message) {
+        LogLevel.I.to(log, "#say(%s, %s)", to, message);
         if (to.isEmpty() || message.length() == 0) {
-            return Talk.View::noop;
+            return Talk.View::idle;
         }
         Future<Talk.Model> f = io.submit(() -> {
             switch (session.check()) {

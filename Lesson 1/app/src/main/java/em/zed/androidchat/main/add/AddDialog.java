@@ -2,7 +2,7 @@
  * This file is a part of the Lesson 1 project.
  */
 
-package em.zed.androidchat.main;
+package em.zed.androidchat.main.add;
 
 import android.app.Dialog;
 import android.content.DialogInterface;

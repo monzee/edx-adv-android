@@ -13,8 +13,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import edu.galileo.android.androidchat.contactlist.entities.User;
-import em.zed.androidchat.Either;
 import em.zed.androidchat.backend.Contacts;
+import em.zed.androidchat.util.Either;
 
 public class FirebaseContacts implements Contacts.Service {
 

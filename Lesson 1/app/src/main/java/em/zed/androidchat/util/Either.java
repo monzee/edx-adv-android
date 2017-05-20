@@ -2,7 +2,7 @@
  * This file is a part of the Lesson 1 project.
  */
 
-package em.zed.androidchat;
+package em.zed.androidchat.util;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;

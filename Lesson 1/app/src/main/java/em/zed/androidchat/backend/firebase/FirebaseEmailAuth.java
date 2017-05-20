@@ -14,13 +14,13 @@ import com.google.firebase.auth.FirebaseUser;
 import java.util.concurrent.TimeoutException;
 
 import edu.galileo.android.androidchat.contactlist.entities.User;
-import em.zed.androidchat.Either;
 import em.zed.androidchat.Globals;
 import em.zed.androidchat.LogLevel;
 import em.zed.androidchat.Logger;
 import em.zed.androidchat.backend.Auth;
 import em.zed.androidchat.backend.Contacts;
 import em.zed.androidchat.backend.UserRepository;
+import em.zed.androidchat.util.Either;
 
 public class FirebaseEmailAuth implements Auth.Service {
 

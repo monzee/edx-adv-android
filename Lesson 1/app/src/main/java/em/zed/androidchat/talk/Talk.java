@@ -24,8 +24,7 @@ public interface Talk {
         void fetchingLog(Future<Model> task);
         void fetchedLog(List<ChatMessage> chatLog);
 
-        void noop();
-        void idleChat(List<ChatMessage> log);
+        void idle();
 
         void saying(Future<Model> task);
         void said(ChatMessage message);
@@ -49,7 +48,7 @@ public interface Talk {
     }
 
     interface TargetPort {
-        void push(List<ChatMessage> messages);
+        void replace(List<ChatMessage> messages);
         Model pull();
         Model push(ChatMessage message);
     }
