@@ -10,6 +10,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import em.zed.androidchat.backend.Auth;
+import em.zed.androidchat.backend.ChatRepository;
 import em.zed.androidchat.backend.Contacts;
 import em.zed.androidchat.backend.Files;
 import em.zed.androidchat.backend.Image;
@@ -24,6 +25,7 @@ public interface Globals {
     Auth.Service auth();
     Files.Service dataFiles();
     UserRepository users();
+    ChatRepository chats();
     Contacts.Service contacts();
     /**
      * This is generic because I don't want platform types (especially
@@ -64,6 +66,11 @@ public interface Globals {
         @Override
         public UserRepository users() {
             return fakeUsers.get();
+        }
+
+        @Override
+        public ChatRepository chats() {
+            return null;
         }
 
         @Override

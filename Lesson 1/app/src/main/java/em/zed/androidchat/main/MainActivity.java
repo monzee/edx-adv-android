@@ -4,6 +4,7 @@
 
 package em.zed.androidchat.main;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
@@ -32,9 +33,11 @@ import edu.galileo.android.androidchat.R;
 import edu.galileo.android.androidchat.contactlist.entities.User;
 import em.zed.androidchat.LogLevel;
 import em.zed.androidchat.Pending;
+import em.zed.androidchat.StateRepr;
 import em.zed.androidchat.backend.Auth;
 import em.zed.androidchat.backend.UserRepository;
 import em.zed.androidchat.concerns.SessionFragment;
+import em.zed.androidchat.talk.TalkActivity;
 
 public class MainActivity extends AppCompatActivity implements
         Main.View, Main.Renderer, ContactsAdapter.Pipe, SessionFragment.Pipe, AddDialog.Pipe {
@@ -94,7 +97,7 @@ public class MainActivity extends AppCompatActivity implements
             my.backlog.add(task.cancel());
         }
         my.backlog.add(my.state);
-        move(v -> v.replay(my.backlog));
+        move(v -> v.fold(my.backlog));
     }
 
     @Override
@@ -154,7 +157,7 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     @Override
-    public void replay(Queue<Main.Model> backlog) {
+    public void fold(Queue<Main.Model> backlog) {
         Main.Model last = Main.View::booting;
         while (!backlog.isEmpty()) {
             last = backlog.poll();
@@ -210,7 +213,9 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public void willChatWith(User contact) {
         move(adapter.pull());
-        // launch chat
+        startActivity(new Intent(this, TalkActivity.class)
+                .putExtra(TalkActivity.EMAIL, contact.getEmail())
+                .putExtra(TalkActivity.ONLINE, contact.isOnline()));
     }
 
     @Override

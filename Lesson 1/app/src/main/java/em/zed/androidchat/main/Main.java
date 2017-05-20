@@ -19,7 +19,7 @@ public interface Main {
 
     interface View {
         void booting();
-        void replay(Queue<Model> backlog);
+        void fold(Queue<Model> backlog);
 
         void loading(Future<Model> task);
         void loaded(String userEmail, List<User> contacts);

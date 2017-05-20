@@ -2,7 +2,7 @@
  * This file is a part of the Lesson 1 project.
  */
 
-package em.zed.androidchat.main;
+package em.zed.androidchat;
 
 import android.annotation.SuppressLint;
 
@@ -10,10 +10,19 @@ import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.Future;
 
+import edu.galileo.android.androidchat.chat.entities.ChatMessage;
 import edu.galileo.android.androidchat.contactlist.entities.User;
+import em.zed.androidchat.main.Add;
+import em.zed.androidchat.main.Main;
+import em.zed.androidchat.talk.Talk;
 
 @SuppressLint("DefaultLocale")
-public class StateRepr implements Main.View, Add.View {
+public class StateRepr implements Talk.View, Main.View, Add.View {
+
+    public static String stringify(Talk.Model state) {
+        state.render(INSTANCE);
+        return INSTANCE.repr;
+    }
 
     public static String stringify(Main.Model state) {
         state.render(INSTANCE);
@@ -26,10 +35,59 @@ public class StateRepr implements Main.View, Add.View {
     }
 
     private static StateRepr INSTANCE = new StateRepr();
-
     private String repr;
 
     private StateRepr() {}
+
+    @Override
+    public void booting(Queue<Talk.Model> backlog) {
+        repr = "booting | backlog size: " + backlog.size();
+    }
+
+    @Override
+    public void talking(String email, boolean online) {
+        repr = "talking | email: " + email + "; online: " + online;
+    }
+
+    @Override
+    public void fetchingLog(Future<Talk.Model> task) {
+        repr = "fetching-log";
+    }
+
+    @Override
+    public void fetchedLog(List<ChatMessage> chatLog) {
+        repr = "fetched-log | log size: " + chatLog.size();
+    }
+
+    @Override
+    public void noop() {
+        repr = "no-op";
+    }
+
+    @Override
+    public void idleChat(List<ChatMessage> log) {
+        repr = "idle | log size: " + log.size();
+    }
+
+    @Override
+    public void saying(Future<Talk.Model> task) {
+        repr = "saying";
+    }
+
+    @Override
+    public void said(ChatMessage message) {
+        repr = "said | sender: " + message.getSender() + "; msg: " + message.getMsg();
+    }
+
+    @Override
+    public void heard(ChatMessage message) {
+        repr = "heard | sender: " + message.getSender() + "; msg: " + message.getMsg();
+    }
+
+    @Override
+    public void loggingIn() {
+        repr = "logging-in";
+    }
 
     @Override
     public void booting() {
@@ -37,7 +95,7 @@ public class StateRepr implements Main.View, Add.View {
     }
 
     @Override
-    public void replay(Queue<Main.Model> backlog) {
+    public void fold(Queue<Main.Model> backlog) {
         repr = "replay | backlog size: " + backlog.size();
     }
 
@@ -106,7 +164,7 @@ public class StateRepr implements Main.View, Add.View {
 
     @Override
     public void addFailed(String reason) {
-        repr = "addFailed | reason: " + reason;
+        repr = "add-failed | reason: " + reason;
     }
 
     @Override

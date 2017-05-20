@@ -56,11 +56,11 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:id="@+id/btnSendMessage"
-            android:layout_margin="@dimen/activity_horizontal_margin"
+            android:layout_margin="0dp"
             android:layout_alignParentBottom="true"
             android:layout_alignParentRight="true"
             android:tint="@android:color/black"
-            android:background="@android:color/transparent"
+            style="?borderlessButtonStyle"
             android:src="@android:drawable/ic_menu_send"/>
     </RelativeLayout>
 

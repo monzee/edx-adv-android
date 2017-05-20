@@ -30,6 +30,9 @@ public final class Schema {
     static final String CONTACTS = "contacts";
     static final String EMAIL = "email";
     static final String ONLINE = "online";
+    static final String MESSAGE = "msg";
+    static final String SENDER = "sender";
+    static final String SENT_BY_ME = "sentByMe";  // i don't get why this is persisted
 
     static String legalize(String key) {
         return key.replaceAll("[.$#\\[\\]]", "_");

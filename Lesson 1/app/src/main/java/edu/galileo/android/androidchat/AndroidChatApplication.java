@@ -18,10 +18,12 @@ import em.zed.androidchat.Globals;
 import em.zed.androidchat.Lazy;
 import em.zed.androidchat.Logger;
 import em.zed.androidchat.backend.Auth;
+import em.zed.androidchat.backend.ChatRepository;
 import em.zed.androidchat.backend.Image;
 import em.zed.androidchat.backend.Contacts;
 import em.zed.androidchat.backend.Files;
 import em.zed.androidchat.backend.UserRepository;
+import em.zed.androidchat.backend.firebase.FirebaseChatRepository;
 import em.zed.androidchat.backend.firebase.FirebaseContacts;
 import em.zed.androidchat.backend.firebase.FirebaseEmailAuth;
 import em.zed.androidchat.backend.firebase.FirebaseUserRepository;
@@ -55,6 +57,11 @@ public class AndroidChatApplication extends Application implements Globals {
         @Override
         public UserRepository users() {
             return delegate.users();
+        }
+
+        @Override
+        public ChatRepository chats() {
+            return delegate.chats();
         }
 
         @Override
@@ -133,6 +140,11 @@ public class AndroidChatApplication extends Application implements Globals {
     @Override
     public UserRepository users() {
         return users.get();
+    }
+
+    @Override
+    public ChatRepository chats() {
+        return new FirebaseChatRepository(chatsNode.get());
     }
 
     @Override

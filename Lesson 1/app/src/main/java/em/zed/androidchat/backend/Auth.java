@@ -47,7 +47,7 @@ public interface Auth {
     Session NO_SESSION = new Session() {
         @Override
         public Status check() {
-            throw new IllegalStateException("Not authenticated.");
+            return Status.GUEST;
         }
 
         @Override

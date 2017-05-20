@@ -8,13 +8,11 @@ import android.app.Dialog;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v7.app.AlertDialog;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 
@@ -28,6 +26,7 @@ import edu.galileo.android.androidchat.R;
 import edu.galileo.android.androidchat.contactlist.entities.User;
 import em.zed.androidchat.LogLevel;
 import em.zed.androidchat.Logger;
+import em.zed.androidchat.StateRepr;
 
 public class AddDialog extends DialogFragment implements Add.View {
 
