@@ -7,6 +7,10 @@ package em.zed.androidchat;
 import org.junit.Test;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.*;
@@ -27,5 +31,24 @@ public class TeachMeHowToJava {
         } catch (Exception e) {
             fail("you'd think it'd throw something, but apparently not.");
         }
+    }
+
+    @Test(timeout = 1000)
+    public void can_i_interrupt_a_thread_waiting_on_a_regular_object_NO_USE_A_CDL_INSTEAD()
+            throws InterruptedException {
+        ExecutorService ex = Executors.newSingleThreadExecutor();
+        CountDownLatch setup = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(1);
+        Future<?> f = ex.submit(() -> {
+            try {
+                setup.countDown();
+                new CountDownLatch(1).await();
+            } catch (InterruptedException e) {
+                done.countDown();
+            }
+        });
+        setup.await();
+        f.cancel(true);
+        done.await();
     }
 }

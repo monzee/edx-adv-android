@@ -133,7 +133,8 @@ public class ContactsAdapter extends RecyclerView.Adapter<ContactsAdapter.Contac
 
     @Override
     public Main.Model pull() {
-        return v -> v.idle(items);
+        List<User> ref = items;  // using `items` directly leaks the adapter
+        return v -> v.idle(ref);
     }
 
     private void reindex() {

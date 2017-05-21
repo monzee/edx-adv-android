@@ -24,7 +24,7 @@ import edu.galileo.android.androidchat.chat.entities.ChatMessage;
 public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.Message>
         implements Talk.TargetPort {
 
-    static class Message extends RecyclerView.ViewHolder {
+    public static class Message extends RecyclerView.ViewHolder {
         @Bind(R.id.txtMessage) TextView txtMessage;
         @BindColor(R.color.colorPrimary) int primaryColor;
         @BindColor(R.color.colorAccent) int accentColor;

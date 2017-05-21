@@ -8,6 +8,7 @@ import com.bumptech.glide.RequestManager;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.squareup.leakcanary.LeakCanary;
 
 import java.util.concurrent.ExecutorService;
 
@@ -93,9 +94,6 @@ public class AndroidChatApplication extends Application implements Globals {
     private final Lazy<DatabaseReference> usersNode = new Lazy<>(() ->
             fbRoot.get().getReference(Schema.USERS));
 
-    private final Lazy<DatabaseReference> chatsNode = new Lazy<>(() ->
-            fbRoot.get().getReference(Schema.CHATS));
-
     private final Lazy<UserRepository> users = new Lazy<>(() ->
             new FirebaseUserRepository(usersNode.get()));
 
@@ -109,11 +107,21 @@ public class AndroidChatApplication extends Application implements Globals {
             Globals.TIMEOUT,
             logger()));
 
+    private final Lazy<ChatRepository> chats = new Lazy<>(() ->
+            new FirebaseChatRepository(fbRoot.get().getReference(Schema.CHATS)));
+
+    private final Lazy<Files.Service> files = new Lazy<>(() ->
+            new Files.Service(getDir("hands-off", MODE_PRIVATE)));
+
     private ImageLoader imageLoader;
 
     @Override
     public void onCreate() {
         super.onCreate();
+        if (LeakCanary.isInAnalyzerProcess(this)) {
+            return;
+        }
+        LeakCanary.install(this);
         delegate = this;
     }
 
@@ -134,7 +142,7 @@ public class AndroidChatApplication extends Application implements Globals {
 
     @Override
     public Files.Service dataFiles() {
-        return new Files.Service(getDir("hands-off", MODE_PRIVATE));
+        return files.get();
     }
 
     @Override
@@ -144,7 +152,7 @@ public class AndroidChatApplication extends Application implements Globals {
 
     @Override
     public ChatRepository chats() {
-        return new FirebaseChatRepository(chatsNode.get());
+        return chats.get();
     }
 
     @Override
@@ -163,6 +171,7 @@ public class AndroidChatApplication extends Application implements Globals {
         return new AndroidLog("mz");
     }
 
+    @Deprecated
     public ImageLoader getImageLoader() {
         if (imageLoader == null) {
             imageLoader = new GlideImageLoader(this);

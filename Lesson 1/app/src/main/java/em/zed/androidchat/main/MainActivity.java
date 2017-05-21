@@ -17,6 +17,7 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Toast;
 
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -225,7 +226,9 @@ public class MainActivity extends AppCompatActivity implements
             apply(Main.View::loggedOut);
             return;
         }
-        throw new RuntimeException(e);
+        LogLevel.E.to(my.log, e);
+        Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+        finish();
     }
 
     @Override

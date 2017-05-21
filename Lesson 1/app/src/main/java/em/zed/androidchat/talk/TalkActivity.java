@@ -14,7 +14,6 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,8 +21,6 @@ import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -33,47 +30,17 @@ import butterknife.OnClick;
 import de.hdodenhof.circleimageview.CircleImageView;
 import edu.galileo.android.androidchat.R;
 import edu.galileo.android.androidchat.chat.entities.ChatMessage;
-import edu.galileo.android.androidchat.contactlist.entities.User;
 import em.zed.androidchat.LogLevel;
-import em.zed.androidchat.Logger;
 import em.zed.androidchat.StateRepr;
 import em.zed.androidchat.backend.Auth;
-import em.zed.androidchat.backend.Files;
-import em.zed.androidchat.backend.Image;
 import em.zed.androidchat.concerns.SessionFragment;
 import em.zed.androidchat.util.Pending;
-
-import static edu.galileo.android.androidchat.AndroidChatApplication.GLOBALS;
 
 public class TalkActivity extends AppCompatActivity implements
         Talk.Renderer, Talk.View, SessionFragment.Pipe {
 
     public static final String EMAIL = "arg-email";
     public static final String ONLINE = "arg-online";
-
-    private static class Scope {
-        final ExecutorService junction = Executors.newSingleThreadExecutor();
-        final ExecutorService io = GLOBALS.io();
-        final Files.Service files = GLOBALS.dataFiles();
-        final Logger log = GLOBALS.logger();
-        final Image.Service<ImageView> images = GLOBALS.images();
-        final Auth.Service auth = GLOBALS.auth();
-        final User victim;
-        final ChatAdapter adapter = new ChatAdapter();
-        Talk.Model state;
-        Talk.Model checkpoint;
-        Talk.SourcePort actions;
-        int overlap;
-
-        Scope(String email, boolean online) {
-            victim = new User(email, online, null);
-            state = v -> v.talking(victim.getEmail(), victim.isOnline());
-        }
-
-        void login(Auth.Tokens tokens) {
-            actions = new TalkController(io, log, GLOBALS.chats(), auth.start(tokens));
-        }
-    }
 
     @Bind(R.id.toolbar) Toolbar toolbar;
     @Bind(R.id.txtUser) TextView txtUser;
@@ -82,6 +49,7 @@ public class TalkActivity extends AppCompatActivity implements
     @Bind(R.id.messageRecyclerView) RecyclerView recyclerView;
     @Bind(R.id.imgAvatar) CircleImageView imgAvatar;
 
+    private final ChatAdapter adapter = new ChatAdapter();
     private final Queue<Pending<Talk.Model>> inProgress = new ArrayDeque<>();
     private Scope my;
     private SessionFragment session;
@@ -110,7 +78,7 @@ public class TalkActivity extends AppCompatActivity implements
         }
         my.images.load(email).into(imgAvatar);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recyclerView.setAdapter(my.adapter);
+        recyclerView.setAdapter(adapter);
     }
 
     @Override
@@ -211,10 +179,10 @@ public class TalkActivity extends AppCompatActivity implements
 
     @Override
     public void fetchedLog(List<ChatMessage> chatLog) {
-        my.adapter.replace(chatLog);
-        recyclerView.scrollToPosition(my.adapter.getItemCount() - 1);
+        adapter.replace(chatLog);
+        recyclerView.scrollToPosition(adapter.getItemCount() - 1);
         if (cancelWatch == null) {
-            my.overlap = chatLog.size() - 1;
+            my.overlap = chatLog.size();
             cancelWatch = my.actions.listen(message -> {
                 if (my.overlap > 0) {
                     my.overlap--;
@@ -227,26 +195,28 @@ public class TalkActivity extends AppCompatActivity implements
 
     @Override
     public void idle() {
-        move(my.adapter.pull());
+        move(adapter.pull());
     }
 
     @Override
     public void saying(Future<Talk.Model> task) {
         my.checkpoint = my.state;
+        inputMessage.setEnabled(false);
         apply(task);
     }
 
     @Override
     public void said(ChatMessage message) {
+        inputMessage.setEnabled(true);
         message.setSentByMe(true);
-        move(my.adapter.push(message));
-        recyclerView.smoothScrollToPosition(my.adapter.getItemCount() - 1);
+        move(adapter.push(message));
+        recyclerView.smoothScrollToPosition(adapter.getItemCount() - 1);
     }
 
     @Override
     public void heard(ChatMessage message) {
-        move(my.adapter.push(message));
-        recyclerView.smoothScrollToPosition(my.adapter.getItemCount() - 1);
+        move(adapter.push(message));
+        recyclerView.smoothScrollToPosition(adapter.getItemCount() - 1);
     }
 
     @Override
