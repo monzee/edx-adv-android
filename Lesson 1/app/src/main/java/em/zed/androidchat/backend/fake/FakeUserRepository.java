@@ -91,13 +91,13 @@ public class FakeUserRepository implements UserRepository {
     }
 
     @Override
-    public Canceller onUpdate(String email, OnContactsUpdate listener) {
+    public Runnable onUpdate(String email, OnContactsUpdate listener) {
         return onUpdate(Globals.IMMEDIATE, email, listener);
     }
 
     @Override
-    public Canceller onUpdate(Executor ex, String email, OnContactsUpdate listener) {
-        return Canceller.NOOP;
+    public Runnable onUpdate(Executor ex, String email, OnContactsUpdate listener) {
+        return Globals.NOOP;
     }
 
     private void notifyUpdate(String key) {

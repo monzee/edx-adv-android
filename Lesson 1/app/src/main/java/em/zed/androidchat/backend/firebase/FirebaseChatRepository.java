@@ -41,7 +41,9 @@ public class FirebaseChatRepository implements ChatRepository {
                     public void onDataChange(DataSnapshot dataSnapshot) {
                         List<ChatMessage> history = new ArrayList<>();
                         for (DataSnapshot row : dataSnapshot.getChildren()) {
-                            history.add(row.getValue(ChatMessage.class));
+                            ChatMessage m = row.getValue(ChatMessage.class);
+                            m.setSentByMe(sender.equals(m.getSender()));
+                            history.add(m);
                         }
                         result.ok(history);
                     }
@@ -55,7 +57,7 @@ public class FirebaseChatRepository implements ChatRepository {
             }
 
             @Override
-            public Canceller snoop(OnReceive listener) {
+            public Runnable snoop(OnReceive listener) {
                 ChildEventListener onUpdate = new ChildEventListener() {
                     @Override
                     public void onChildAdded(DataSnapshot dataSnapshot, String s) {

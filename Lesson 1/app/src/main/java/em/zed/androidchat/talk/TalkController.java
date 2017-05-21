@@ -9,6 +9,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import edu.galileo.android.androidchat.chat.entities.ChatMessage;
+import em.zed.androidchat.Globals;
 import em.zed.androidchat.LogLevel;
 import em.zed.androidchat.Logger;
 import em.zed.androidchat.backend.Auth;
@@ -39,7 +40,7 @@ public class TalkController implements Talk.SourcePort {
         if (chatLog != null) {
             return chatLog.snoop(listener);
         }
-        return () -> {};
+        return Globals.NOOP;
     }
 
     @Override

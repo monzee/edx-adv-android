@@ -21,6 +21,7 @@ import em.zed.androidchat.util.Lazy;
 
 public interface Globals {
 
+
     ExecutorService compute();
     ExecutorService io();
     Auth.Service auth();
@@ -36,6 +37,7 @@ public interface Globals {
     Logger logger();
 
     Executor IMMEDIATE = Runnable::run;
+    Runnable NOOP = () -> {};
     int TIMEOUT = 60_000;  // msec
 
     Globals DEFAULT = new Globals() {

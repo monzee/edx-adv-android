@@ -34,7 +34,6 @@ import edu.galileo.android.androidchat.contactlist.entities.User;
 import em.zed.androidchat.LogLevel;
 import em.zed.androidchat.StateRepr;
 import em.zed.androidchat.backend.Auth;
-import em.zed.androidchat.backend.UserRepository;
 import em.zed.androidchat.concerns.SessionFragment;
 import em.zed.androidchat.main.add.Add;
 import em.zed.androidchat.main.add.AddDialog;
@@ -51,7 +50,7 @@ public class MainActivity extends AppCompatActivity implements
     private final Queue<Pending<Main.Model>> inProgress = new ArrayDeque<>();
     private Scope my;
     private ContactsAdapter adapter;
-    private UserRepository.Canceller watch;
+    private Runnable cancelWatch;
     private SessionFragment session;
 
     @Override
@@ -207,7 +206,6 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public void loggedOut() {
         unwatch();
-        session.destroy();
         session.start(true);
         move(Main.View::booting);
     }
@@ -280,16 +278,16 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     void watch() {
-        if (watch == null) {
-            watch = my.actions.observe(
+        if (cancelWatch == null) {
+            cancelWatch = my.actions.observe(
                     cs -> apply(v -> v.loaded(my.subtitle, cs)));
         }
     }
 
     void unwatch() {
-        if (watch != null) {
-            watch.cancel();
-            watch = null;
+        if (cancelWatch != null) {
+            cancelWatch.run();
+            cancelWatch = null;
         }
     }
 

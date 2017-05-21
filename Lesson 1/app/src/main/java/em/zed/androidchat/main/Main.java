@@ -42,7 +42,7 @@ public interface Main {
     }
 
     interface SourcePort {
-        UserRepository.Canceller observe(UserRepository.OnContactsUpdate listener);
+        Runnable observe(UserRepository.OnContactsUpdate listener);
         Model loadContacts();
         Model removeContact(String email);
         Model logout();

@@ -71,12 +71,12 @@ public class FirebaseUserRepository implements UserRepository {
     }
 
     @Override
-    public Canceller onUpdate(String email, OnContactsUpdate listener) {
+    public Runnable onUpdate(String email, OnContactsUpdate listener) {
         return onUpdate(Globals.IMMEDIATE, email, listener);
     }
 
     @Override
-    public Canceller onUpdate(Executor ex, String email, OnContactsUpdate listener) {
+    public Runnable onUpdate(Executor ex, String email, OnContactsUpdate listener) {
         ValueEventListener profileChange = new ValueEventListener() {
             boolean first = true;
 

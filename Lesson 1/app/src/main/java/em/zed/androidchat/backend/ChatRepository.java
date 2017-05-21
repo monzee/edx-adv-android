@@ -14,11 +14,13 @@ public interface ChatRepository {
         void got(ChatMessage message);
     }
 
-    interface Canceller extends Runnable {}
-
     interface Log {
         List<ChatMessage> history() throws InterruptedException;
-        Canceller snoop(OnReceive listener);
+
+        /**
+         * @return cancels the listener when run
+         */
+        Runnable snoop(OnReceive listener);
     }
 
     Log getLog(String sender, String receiver);

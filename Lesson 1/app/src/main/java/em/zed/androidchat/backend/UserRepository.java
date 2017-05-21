@@ -22,15 +22,18 @@ public interface UserRepository {
         void updated(List<User> contacts);
     }
 
-    interface Canceller {
-        Canceller NOOP = () -> {};
-        void cancel();
-    }
-
     User getByEmail(String email) throws InterruptedException;
     void put(User user) throws InterruptedException;
     void put(User user, boolean fireAndForget) throws InterruptedException;
-    Canceller onUpdate(String email, OnContactsUpdate listener);
-    Canceller onUpdate(Executor ex, String email, OnContactsUpdate listener);
+
+    /**
+     * @return stops the listener when run
+     */
+    Runnable onUpdate(String email, OnContactsUpdate listener);
+
+    /**
+     * @return stops the listener when run
+     */
+    Runnable onUpdate(Executor ex, String email, OnContactsUpdate listener);
 
 }

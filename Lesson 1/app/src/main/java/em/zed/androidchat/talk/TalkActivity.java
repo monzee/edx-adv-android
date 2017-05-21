@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.widget.EditText;
@@ -58,14 +59,15 @@ public class TalkActivity extends AppCompatActivity implements
         final Image.Service<ImageView> images = GLOBALS.images();
         final Auth.Service auth = GLOBALS.auth();
         final User victim;
+        final ChatAdapter adapter = new ChatAdapter();
         Talk.Model state;
         Talk.Model checkpoint;
         Talk.SourcePort actions;
+        int overlap;
 
         Scope(String email, boolean online) {
             victim = new User(email, online, null);
             state = v -> v.talking(victim.getEmail(), victim.isOnline());
-            checkpoint = state;
         }
 
         void login(Auth.Tokens tokens) {
@@ -107,13 +109,14 @@ public class TalkActivity extends AppCompatActivity implements
             txtStatus.setTextColor(Color.RED);
         }
         my.images.load(email).into(imgAvatar);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setAdapter(my.adapter);
     }
 
     @Override
     public void onAttachFragment(Fragment fragment) {
         if (fragment instanceof SessionFragment) {
             session = ((SessionFragment) fragment).inject(my.io, my.files, my.log, this);
-            session.start(false);
         }
     }
 
@@ -192,7 +195,12 @@ public class TalkActivity extends AppCompatActivity implements
             apply(v -> v.error(new IllegalArgumentException("Argument required: " + EMAIL)));
             return;
         }
-        apply(my.actions.fetchLog(email));
+        if (my.actions == null) {
+            my.checkpoint = my.state;
+            session.start(false);
+        } else {
+            apply(my.actions.fetchLog(email));
+        }
     }
 
     @Override
@@ -203,10 +211,14 @@ public class TalkActivity extends AppCompatActivity implements
 
     @Override
     public void fetchedLog(List<ChatMessage> chatLog) {
-        // adapter.replace(log)
+        my.adapter.replace(chatLog);
+        recyclerView.scrollToPosition(my.adapter.getItemCount() - 1);
         if (cancelWatch == null) {
+            my.overlap = chatLog.size() - 1;
             cancelWatch = my.actions.listen(message -> {
-                if (!message.isSentByMe()) {
+                if (my.overlap > 0) {
+                    my.overlap--;
+                } else if (!message.isSentByMe()) {
                     apply(v -> v.heard(message));
                 }
             });
@@ -215,7 +227,7 @@ public class TalkActivity extends AppCompatActivity implements
 
     @Override
     public void idle() {
-        // move(adapter.pull());
+        move(my.adapter.pull());
     }
 
     @Override
@@ -226,20 +238,20 @@ public class TalkActivity extends AppCompatActivity implements
 
     @Override
     public void said(ChatMessage message) {
-        // apply(adapter.push(message))
-        move(Talk.View::idle);
+        message.setSentByMe(true);
+        move(my.adapter.push(message));
+        recyclerView.smoothScrollToPosition(my.adapter.getItemCount() - 1);
     }
 
     @Override
     public void heard(ChatMessage message) {
-        // apply(adapter.push(message))
-        move(Talk.View::idle);
+        move(my.adapter.push(message));
+        recyclerView.smoothScrollToPosition(my.adapter.getItemCount() - 1);
     }
 
     @Override
     public void loggingIn() {
         session.start(true);
-        move(my.checkpoint);
     }
 
     @Override
@@ -252,6 +264,7 @@ public class TalkActivity extends AppCompatActivity implements
     @Override
     public void loggedIn(Auth.Tokens tokens) {
         my.login(tokens);
+        my.checkpoint.render(this);
     }
 
     @Override

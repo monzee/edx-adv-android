@@ -6,7 +6,6 @@ package em.zed.androidchat.concerns;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
-import android.support.annotation.WorkerThread;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 
@@ -26,9 +25,9 @@ import static android.app.Activity.RESULT_OK;
 public class SessionFragment extends Fragment {
 
     public interface Pipe {
-        @WorkerThread
         void loggedIn(Auth.Tokens tokens);
         void loginCancelled();
+        void runOnUiThread(Runnable proc);
     }
 
     public static void attach(FragmentManager fm) {
@@ -73,7 +72,7 @@ public class SessionFragment extends Fragment {
                     } else try (ObjectInputStream file = new ObjectInputStream(in)) {
                         String auth = file.readUTF();
                         String refresh = file.readUTF();
-                        pipe.loggedIn(new Auth.Tokens(auth, refresh));
+                        pipe.runOnUiThread(() -> pipe.loggedIn(new Auth.Tokens(auth, refresh)));
                     }
                 });
             } catch (IOException e) {

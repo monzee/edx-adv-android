@@ -12,6 +12,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import edu.galileo.android.androidchat.contactlist.entities.User;
+import em.zed.androidchat.Globals;
 import em.zed.androidchat.LogLevel;
 import em.zed.androidchat.Logger;
 import em.zed.androidchat.backend.Auth;
@@ -56,9 +57,9 @@ public class MainController implements Main.SourcePort {
     }
 
     @Override
-    public UserRepository.Canceller observe(UserRepository.OnContactsUpdate listener) {
+    public Runnable observe(UserRepository.OnContactsUpdate listener) {
         if (userEmail == null) {
-            return UserRepository.Canceller.NOOP;
+            return Globals.NOOP;
         }
         return my.users.onUpdate(userEmail, contacts -> {
             LogLevel.I.to(my.log, "#observe");

@@ -44,6 +44,10 @@ public interface Auth {
         void logout() throws InterruptedException;
     }
 
+    interface Sensitive<T> {
+        T build(Session session);
+    }
+
     Session NO_SESSION = new Session() {
         @Override
         public Status check() {
